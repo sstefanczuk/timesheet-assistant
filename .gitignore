@@ -1,0 +1,24 @@
+# Course-provided skills
+.agents/**/10x-*
+.agents/prompts/
+
+# .NET build and test output
+**/bin/
+**/obj/
+**/TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Visual Studio and local IDE settings
+.vs/
+*.user
+*.suo
+*.sln.docstates
+
+# Local secrets and signing certificates
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
