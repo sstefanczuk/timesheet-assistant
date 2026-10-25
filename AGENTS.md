@@ -1,3 +1,36 @@
+# Repository Guidelines
+
+Timesheet Assistant is a Windows desktop application built with .NET 10 MAUI Blazor Hybrid, C#, Razor, and WebView2. The repository currently contains the starter application and an empty xUnit test project.
+
+## Critical Rules
+
+- Keep the application Windows-only: `net10.0-windows10.0.19041.0`. Retain the `TargetFrameworks` property in @src/TimesheetAssistant/TimesheetAssistant.csproj; do not reintroduce Android, iOS, MacCatalyst, or Tizen targets without an explicit request.
+- Use English for all content under `src/`, including comments, documentation, tests, and UI text; see @src/AGENTS.md.
+- Treat `context/archive/` as immutable. Create new change documentation under `context/changes/` instead of editing archived changes.
+- Keep credentials, signing certificates, build output, and Visual Studio state out of commits; follow @.gitignore.
+
+## Build and Verification
+
+Run commands from the repository root on Windows with the .NET 10 SDK and `maui-windows` workload installed.
+
+- `dotnet build TimesheetAssistant.sln` builds both projects.
+- `dotnet test src/TimesheetAssistant.Tests/TimesheetAssistant.Tests.csproj` runs xUnit discovery and tests.
+- `dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json` audits direct and transitive dependencies.
+
+Launch the application from Visual Studio using the Windows target. Report blocked checks separately from successful checks.
+
+## Layout and Implementation
+
+@TimesheetAssistant.sln contains the application in `src/TimesheetAssistant/` and tests in `src/TimesheetAssistant.Tests/`. Razor pages and layouts live in `Components/`; web assets belong in `wwwroot/`, MAUI assets in `Resources/`, and Windows integration in `Platforms/Windows/`. Register application services in @src/TimesheetAssistant/MauiProgram.cs. Match neighboring file formatting; no repository-wide formatter configuration exists yet.
+
+Use @context/foundation/prd.md for product scope and @context/foundation/tech-stack.md for stack decisions. Local persistence is required by the MVP; Jira/MyWork integrations and authentication remain out of scope.
+
+## Tests and Delivery
+
+@src/TimesheetAssistant.Tests/README.md records the current test setup. No tests exist yet; successful runner execution alone is not functional verification. Playwright .NET against the application's WebView2 is planned but unimplemented. No CI workflows currently exist; GitHub Actions and GitHub Releases are planned.
+
+Follow the observed commit style: `chore: initialize Windows MAUI Blazor solution`, `docs: add root agent instructions`.
+
 <!-- BEGIN @przeprogramowani/10x-cli -->
 
 ## Zestaw narzędzi AI 10xDevs — Moduł 1, Lekcja 5
