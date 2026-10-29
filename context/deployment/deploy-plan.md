@@ -109,6 +109,46 @@ Verified locally on 2026-10-29:
   explicitly select Release and RuntimeIdentifierOverride=win-x64. No draft or
   public release was created by that failed run. Checkout was updated to Node 24.
 
-Pending: remote CI/draft verification, first publication and public unauthenticated
-checksum check. No published release or automated functional test is claimed.
-AUTO_PUBLISH_PRERELEASES remains disabled until the first publication is verified.
+First deployment is complete. The preview is publicly available and its downloaded
+checksum was verified. AUTO_PUBLISH_PRERELEASES is now true. No automated CI UI
+test or clean-machine compatibility is claimed.
+
+### First remote package
+
+- Corrected run https://github.com/sstefanczuk/timesheet-assistant/actions/runs/40924554238
+  passed build, xUnit discovery, dependency audit, packaging, artifact upload and
+  draft creation. Build job: 5m51s; release job: 37s.
+- Draft tag: v0.1.0-preview.2. Exact built/tagged commit:
+  `614a5a2823c12f1205b7fbd86bad859ecc3c455e`.
+- Application ZIP: 112187777 bytes; verified downloaded SHA-256:
+  `119381a6579a9f4079158e82476c6e016cc42fd02756842c5a0c43954d36cdb2`.
+  Checksum matches the sidecar and GitHub asset digest. The ZIP was extracted to
+  `artifacts/ci-extracted` and started with window title TimesheetAssistant.
+- Initial desktop inspection reported `Computer Use app approval timed out`.
+  Recovery through the Computer Use launch/activation APIs succeeded. The exact
+  downloaded CI package was verified on the developer workstation: Home rendered,
+  navigation opened Counter, Click me changed the visible count from 0 to 1,
+  Weather loaded five table rows, normal close removed the window, and reopening
+  displayed Home again. The user had independently confirmed the local ZIP.
+- Non-blocking CI annotations: upload-artifact v4/download-artifact v4 still
+  declare Node 20 and ran under GitHub's forced Node 24 compatibility behavior.
+  A future action-version update should verify artifact upload/download together.
+
+### Publication and completion
+
+- Published prerelease (not Latest):
+  https://github.com/sstefanczuk/timesheet-assistant/releases/tag/v0.1.0-preview.2.
+- Release notes record the actual developer-machine checks and explicitly exclude
+  clean-machine/CI UI verification. No binary or checksum was replaced during
+  publication; the draft was promoted in place.
+- Downloaded the public ZIP using Invoke-WebRequest without authentication.
+  SHA-256 matched `119381a6579a9f4079158e82476c6e016cc42fd02756842c5a0c43954d36cdb2`.
+- Enabled repository variable AUTO_PUBLISH_PRERELEASES=true only after the public
+  download check. Future successful main builds publish previews automatically;
+  PRs retain read-only build/package behavior. No additional secrets were added.
+- The final documentation-only result commit uses [skip ci] to avoid creating a
+  redundant preview for the execution log. Application/workflow code is exactly
+  the code verified by the successful CI run and tagged for this release.
+- Remaining limits: unsigned starter, WebView2 required, no persistence, empty
+  xUnit suite, no clean-device verification, and artifact-action deprecation
+  annotations noted above. These do not block the approved technical prerelease.
