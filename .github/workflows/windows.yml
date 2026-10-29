@@ -1,0 +1,90 @@
+name: Windows preview
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          global-json-file: global.json
+      - name: Install pinned MAUI workload
+        run: dotnet workload install maui-windows
+      - name: Restore
+        run: dotnet restore TimesheetAssistant.sln
+      - name: Build
+        run: dotnet build TimesheetAssistant.sln -c Release --no-restore
+      - name: Run xUnit discovery
+        run: |
+          dotnet test src/TimesheetAssistant.Tests/TimesheetAssistant.Tests.csproj -c Release --no-build --logger trx
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          'The starter has no functional tests. Empty discovery does not verify application behavior.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Audit dependencies
+        run: dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json
+      - name: Choose preview version
+        id: version
+        run: '"version=0.1.0-preview.$env:GITHUB_RUN_NUMBER" >> $env:GITHUB_OUTPUT'
+      - name: Package
+        env:
+          PREVIEW_VERSION: ${{ steps.version.outputs.version }}
+        run: ./scripts/Package-Windows.ps1 -Version $env:PREVIEW_VERSION -Commit $env:GITHUB_SHA -BuildNumber ([int]$env:GITHUB_RUN_NUMBER)
+      - name: Upload release inputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windows-preview
+          path: artifacts/release-${{ steps.version.outputs.version }}/*
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+  release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: windows-preview
+          path: release
+      - name: Create prerelease from the exact built commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PREVIEW_VERSION: ${{ needs.build.outputs.version }}
+          AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH_PRERELEASES }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = "v$env:PREVIEW_VERSION"
+          # Creating an existing ref fails deliberately; retries never overwrite releases.
+          gh api --method POST "repos/$env:GH_REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$env:GITHUB_SHA"
+          if ($LASTEXITCODE -ne 0) { throw 'Tag creation failed; inspect existing tag/release before retrying.' }
+          $zip = "release/TimesheetAssistant-$env:PREVIEW_VERSION-win-x64.zip"
+          $releaseArgs = @('release', 'create', $tag, $zip, "$zip.sha256", '--verify-tag', '--prerelease', '--latest=false', '--title', "Timesheet Assistant $env:PREVIEW_VERSION", '--notes-file', 'release/release-notes.md')
+          if ($env:AUTO_PUBLISH -ne 'true') { $releaseArgs += '--draft' }
+          gh @releaseArgs
+          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed; keep the tag for diagnosis.' }

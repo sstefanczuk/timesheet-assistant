@@ -27,7 +27,7 @@ Use @context/foundation/prd.md for product scope and @context/foundation/tech-st
 
 ## Tests and Delivery
 
-@src/TimesheetAssistant.Tests/README.md records the current test setup. No tests exist yet; successful runner execution alone is not functional verification. Playwright .NET against the application's WebView2 is planned but unimplemented. No CI workflows currently exist; GitHub Actions and GitHub Releases are planned.
+@src/TimesheetAssistant.Tests/README.md records the current test setup. No tests exist yet; successful runner execution alone is not functional verification. Playwright .NET against the application's WebView2 is planned but unimplemented. The Windows preview workflow builds and packages the starter; see @context/deployment/deploy-plan.md for release gates and verification status.
 
 Follow the observed commit style: `chore: initialize Windows MAUI Blazor solution`, `docs: add root agent instructions`.
 
