@@ -95,14 +95,20 @@ Verified locally on 2026-10-29:
 - ZIP hash matched; extraction contained the EXE, coreclr.dll, Microsoft.UI.Xaml.dll,
   runtime configuration with included .NET 10.0.13, README and wwwroot/index.html.
 - Extracted application started on the developer desktop; process remained alive
-  and reported window title TimesheetAssistant. Visible UI behavior, restart and
-  a second extraction still need user confirmation; no clean-machine check occurred.
+  and reported window title TimesheetAssistant. The user confirmed Home, Counter,
+  Weather and close/reopen behavior with "działa". No clean-machine check occurred.
 - GitHub remote had no refs when inspected. Typical private-key/token signatures
   were not found in tracked history; this is not an exhaustive secret audit.
-- GitHub CLI portable 2.103.3 is available under ignored artifacts/tools/gh/bin.
-  CLI authentication is pending; no token was requested or stored in source.
-  The attempted system MSI installation did not report completion during checks.
+- GitHub CLI 2.103.3 is installed under Program Files and is also available under
+  ignored artifacts/tools/gh/bin. The user completed browser authentication as
+  sstefanczuk; credentials remain in the system keyring, not source.
+- Origin is configured; deployment commit 8d1d7c5 was pushed to public main.
+  First Actions run: https://github.com/sstefanczuk/timesheet-assistant/actions/runs/40923578794.
+- The first CI run failed before packaging with NETSDK1112: the separate restore
+  used default configuration while build used Release. Restore and build now both
+  explicitly select Release and RuntimeIdentifierOverride=win-x64. No draft or
+  public release was created by that failed run. Checkout was updated to Node 24.
 
-Pending: authenticated GitHub access, remote CI/draft verification, user UI check,
-first publication and public unauthenticated checksum check. No published release
-or completed functional test is claimed. AUTO_PUBLISH_PRERELEASES remains disabled.
+Pending: remote CI/draft verification, first publication and public unauthenticated
+checksum check. No published release or automated functional test is claimed.
+AUTO_PUBLISH_PRERELEASES remains disabled until the first publication is verified.
