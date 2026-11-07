@@ -4,6 +4,8 @@ Timesheet Assistant is a Windows desktop application built with .NET 10 MAUI Bla
 
 ## Critical Rules
 
+- Write all Git commit subjects and bodies in English.
+
 - Keep the application Windows-only: `net10.0-windows10.0.19041.0`. Retain the `TargetFrameworks` property in @src/TimesheetAssistant/TimesheetAssistant.csproj; do not reintroduce Android, iOS, MacCatalyst, or Tizen targets without an explicit request.
 - Use English for all content under `src/`, including comments, documentation, tests, and UI text; see @src/AGENTS.md.
 - Treat `context/archive/` as immutable. Create new change documentation under `context/changes/` instead of editing archived changes.
