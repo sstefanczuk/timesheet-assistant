@@ -29,6 +29,10 @@ Use @context/foundation/prd.md for product scope and @context/foundation/tech-st
 
 @src/TimesheetAssistant.Tests/README.md records the current test setup. No tests exist yet; successful runner execution alone is not functional verification. Playwright .NET against the application's WebView2 is planned but unimplemented. The Windows preview workflow builds and packages the starter; see @context/deployment/deploy-plan.md for release gates and verification status.
 
+The approved test architecture uses separate `TimesheetAssistant.UnitTests` (pure logic, without Playwright, WebView2, an EXE or real storage) and `TimesheetAssistant.UiTests` (real application workflows, including explicit persistence/restart scenarios from S-01). Do not introduce an IntegrationTests project. See @context/foundation/tech-stack.md. F-01 will rename the current empty Tests project to UnitTests and add UiTests; this split is planned, not implemented yet.
+
+After the split, run `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj` before packaging and `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj` against the published EXE after packaging. Separate suites by project paths, not category filters. Until implementation, the current Tests command above remains valid.
+
 Follow the observed commit style: `chore: initialize Windows MAUI Blazor solution`, `docs: add root agent instructions`.
 
 <!-- BEGIN @przeprogramowani/10x-cli -->
