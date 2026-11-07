@@ -38,7 +38,7 @@ jobs:
         run: dotnet build TimesheetAssistant.sln -c Release -p:RuntimeIdentifierOverride=win-x64 --no-restore
       - name: Run xUnit discovery
         run: |
-          dotnet test src/TimesheetAssistant.Tests/TimesheetAssistant.Tests.csproj -c Release --no-build --logger trx
+          dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release --no-build --logger trx
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           'The starter has no functional tests. Empty discovery does not verify application behavior.' >> $env:GITHUB_STEP_SUMMARY
       - name: Audit dependencies

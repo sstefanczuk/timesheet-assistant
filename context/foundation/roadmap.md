@@ -3,7 +3,7 @@ project: Timesheet Assistant
 version: 2
 status: active
 created: 2026-11-01
-updated: 2026-11-02
+updated: 2026-11-07
 prd_version: 1
 main_goal: low-complexity
 top_blocker: capacity
@@ -44,7 +44,7 @@ North star oznacza tutaj najmniejszy kompletny przepływ, który potwierdza gł�
 
 | ID | Change ID | Outcome (user can …) | Prerequisites | PRD refs | Status |
 | --- | --- | --- | --- | --- | --- |
-| F-01 | verify-desktop-ui-path | (foundation) Umożliwić automatyczne uruchomienie aplikacji i interakcję z jej interfejsem na odizolowanych danych w CI. | — | US-01; Non-Functional Requirements | planning |
+| F-01 | verify-desktop-ui-path | (foundation) Umożliwić automatyczne uruchomienie aplikacji i interakcję z jej interfejsem na odizolowanych danych w CI. | — | US-01; Non-Functional Requirements | in-progress |
 | S-01 | record-persistent-workday | Użytkownik może wybrać datę, dodawać, edytować i usuwać osobne wpisy pracy oraz widzieć sumę, brakujący czas lub przekroczenie 7 h 12 min; wpisy pozostają po restarcie. | F-01 | FR-002, FR-005, FR-007; Non-Functional Requirements | proposed |
 | S-07 | browse-entry-history | Użytkownik po otwarciu aplikacji widzi wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy, osobno dzisiaj i możliwość dodania wpisu od zera. Może doładować starszy dzień i przeglądać historię bez limitu retencji; upływ czasu ani aktualizacja aplikacji nie usuwa historii. Przy braku wpisów widzi pusty stan i możliwość dodania nowego. | S-01 | FR-002, FR-006, FR-011; Non-Functional Requirements | proposed |
 | S-08 | copy-earlier-day-entries | Użytkownik może skopiować wybrane wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy i doładować kolejny starszy dzień; może bezpośrednio skopiować pojedynczy wpis na dzisiaj lub wybrać inny dzień docelowy. Kopie są niezależne od oryginału i można je edytować przed podsumowaniem. | S-07 | FR-006 | proposed |
@@ -80,7 +80,7 @@ Stan zbadany w kodzie i dokumentach, potwierdzony przez użytkownika; zapisany 2
 - **Blockers:** —
 - **Unknowns:** Czy wybrana automatyzacja interfejsu działa na runnerze Windows? — Owner: autor z agentem. Block: no. To wynik tego elementu, a nie warunek rozpoczęcia jego planowania.
 - **Risk:** Sprawdzamy tylko uruchomienie i interakcję; zapis oraz zachowanie po restarcie zostaną zweryfikowane z rzeczywistą funkcją w S-01.
-- **Status:** planning
+- **Status:** in-progress
 
 ## Slices
 
