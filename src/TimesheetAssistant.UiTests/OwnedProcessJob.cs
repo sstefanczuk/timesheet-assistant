@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Win32.SafeHandles;
 
 namespace TimesheetAssistant.UiTests;
@@ -18,14 +19,50 @@ internal sealed class OwnedProcessJob : IDisposable
         if (!SetInformationJobObject(handle, 9, ref limits, Marshal.SizeOf<ExtendedLimits>()))
             throw new Win32Exception(Marshal.GetLastWin32Error());
     }
-    public void Assign(Process process)
+    public Process StartApplication(ProcessStartInfo start, TimeSpan cleanupTimeout)
     {
-        if (!AssignProcessToJobObject(handle, process.Handle))
+        // Only this EXE is launched: no shell or arguments. Keep the child's environment private.
+        var environment = string.Join('\0', start.Environment.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(pair => $"{pair.Key}={pair.Value}")) + "\0\0";
+        var environmentBlock = Marshal.StringToHGlobalUni(environment);
+        try
         {
-            var error = Marshal.GetLastWin32Error();
-            process.Kill(entireProcessTree: true);
-            throw new Win32Exception(error, "Could not isolate desktop process in a Windows job.");
+            var startup = new StartupInfo { Size = Marshal.SizeOf<StartupInfo>() };
+            const uint createSuspended = 0x00000004;
+            const uint createUnicodeEnvironment = 0x00000400;
+            if (!CreateProcess(start.FileName, new StringBuilder($"\"{start.FileName}\""), IntPtr.Zero, IntPtr.Zero,
+                false, createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory,
+                ref startup, out var info))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not create suspended desktop process.");
+
+            using var processHandle = new SafeFileHandle(info.Process, ownsHandle: true);
+            using var threadHandle = new SafeFileHandle(info.Thread, ownsHandle: true);
+            Process? process = null;
+            try
+            {
+                // The primary thread cannot create WebView2 children before job membership is established.
+                if (!AssignProcessToJobObject(handle, processHandle.DangerousGetHandle()))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not isolate suspended desktop process in a Windows job.");
+                process = Process.GetProcessById(checked((int)info.ProcessId));
+                if (ResumeThread(threadHandle) == uint.MaxValue)
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not resume isolated desktop process.");
+                return process;
+            }
+            catch
+            {
+                // Also handles assignment failure, when job cleanup cannot reach this suspended process.
+                try
+                {
+                    if (!TerminateProcess(processHandle, 1))
+                        throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not terminate failed desktop launch.");
+                    if (WaitForSingleObject(processHandle, checked((uint)cleanupTimeout.TotalMilliseconds)) != 0)
+                        throw new TimeoutException("Failed desktop launch did not exit within the cleanup budget.");
+                    throw;
+                }
+                finally { process?.Dispose(); }
+            }
         }
+        finally { Marshal.FreeHGlobal(environmentBlock); }
     }
     public bool Contains(uint pid)
     {
@@ -67,6 +104,21 @@ internal sealed class OwnedProcessJob : IDisposable
         finally { Marshal.FreeHGlobal(table); }
     }
     public void Dispose() => handle.Dispose();
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct StartupInfo
+    {
+        public int Size;
+        public string? Reserved, Desktop, Title;
+        public uint X, Y, Width, Height, CharacterWidth, CharacterHeight, FillAttribute, Flags;
+        public ushort ShowWindow, ReservedSize;
+        public IntPtr ReservedBytes, StandardInput, StandardOutput, StandardError;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ProcessInformation
+    {
+        public IntPtr Process, Thread;
+        public uint ProcessId, ThreadId;
+    }
     [StructLayout(LayoutKind.Sequential)]
     private struct TcpRow { public uint State, LocalAddress, LocalPort, RemoteAddress, RemotePort, ProcessId; }
     [StructLayout(LayoutKind.Sequential)]
@@ -94,6 +146,16 @@ internal sealed class OwnedProcessJob : IDisposable
     }
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern SafeFileHandle CreateJobObject(IntPtr attributes, string? name);
+    [DllImport("kernel32.dll", EntryPoint = "CreateProcessW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CreateProcess(string application, StringBuilder commandLine, IntPtr processAttributes,
+        IntPtr threadAttributes, bool inheritHandles, uint flags, IntPtr environment, string directory,
+        ref StartupInfo startup, out ProcessInformation information);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint ResumeThread(SafeFileHandle thread);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool TerminateProcess(SafeFileHandle process, uint exitCode);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint WaitForSingleObject(SafeFileHandle process, uint milliseconds);
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool SetInformationJobObject(SafeFileHandle job, int infoClass, ref ExtendedLimits info, int length);
     [DllImport("kernel32.dll", SetLastError = true)]

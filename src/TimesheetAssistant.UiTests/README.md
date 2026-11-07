@@ -20,7 +20,9 @@ Remove-Item Env:TIMESHEET_ASSISTANT_TEST_APP
 An existing package's EXE can also be assigned directly. Only the launched child
 receives the unique `WEBVIEW2_USER_DATA_FOLDER` and loopback CDP arguments. A
 private Windows job verifies the listener belongs to the launched process tree
-before Playwright connects. Port collisions fail startup. Cleanup terminates only
+before Playwright connects. The EXE is created suspended, assigned to that job,
+then resumed so every WebView2 child starts inside the job. Assignment or resume
+failure terminates the suspended process. Port collisions fail startup. Cleanup terminates only
 that job and removes its unique temporary session directory after processes exit.
 Independent WebView2 sessions are never selected by executable name. Test output
 records the application PID and profile path for cleanup verification.

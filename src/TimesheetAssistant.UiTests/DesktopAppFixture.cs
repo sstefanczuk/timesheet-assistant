@@ -56,8 +56,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             };
             start.Environment["WEBVIEW2_USER_DATA_FOLDER"] = ProfileDirectory;
             start.Environment["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = $"--remote-debugging-port={port} --remote-debugging-address=127.0.0.1";
-            application = Process.Start(start) ?? throw new InvalidOperationException("Desktop process could not be started.");
-            job.Assign(application);
+            application = job.StartApplication(start, timeouts.Cleanup);
             var creation = Playwright.CreateAsync();
             try { playwright = await creation.WaitAsync(startup.Token); }
             catch

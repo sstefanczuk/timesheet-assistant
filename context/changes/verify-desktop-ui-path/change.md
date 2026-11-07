@@ -22,3 +22,10 @@ F-01 z roadmapy M-1. Plan przygotowany z umiejętnością 10x-plan po uzgodnieni
 - Counter interaction, failure screenshot/trace capture and a real windows-2025 run remain phases 2–3. Persistence is outside F-01.
 - Break-check passed: a temporary production Home heading change made the same desktop test fail its visibility assertion after 15 seconds. Home source was unconditionally restored from Git; the broken package remains only in ignored artifacts. TRX: `break-check.trx`.
 - Final Release restore/build with CI properties passed (zero warnings/errors), UnitTests runner completed with zero tests as expected, UiTests executed and passed one real-process test, actionlint and staged whitespace checks passed, and dependency audit reported no vulnerable packages in all three projects. Final successful TRX: `final-connection.trx`. No remote workflow was launched during phase 1.
+
+## Phase 1 review correction — 2026-11-07
+
+- Fixed the process-start/job-assignment race identified in review: CreateProcessW now creates the EXE suspended with its child-only Unicode environment; AssignProcessToJobObject precedes ResumeThread. Creation handles and environment memory are released on every path. Assignment/resume failure terminates and waits for the created process within the cleanup budget.
+- Release solution build passed with zero warnings/errors, and the existing real-WebView2 Home probe passed with the new launcher.
+- A controlled temporary probe observed the initial thread in Wait/Suspended state before assignment, forced an assignment-path failure, and confirmed the unassigned PID was removed. The probe source was restored in finally. Evidence: ignored `artifacts/phase1-20261107/results/assignment-failure.trx`; its failed test result is expected for this negative probe.
+- Final restored-source probe passed (1 test), and its exact application PID and profile were confirmed removed. TRX: `artifacts/phase1-20261107/results/suspended-launch-final.trx`.

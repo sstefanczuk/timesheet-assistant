@@ -179,9 +179,9 @@ Brak danych do migracji. Test nie zapisuje wpisów pracy. Wycofanie zmiany usuwa
 
 #### Automated
 
-- [x] 1.1 `dotnet build TimesheetAssistant.sln` przechodzi z zachowanym TargetFrameworks Windows-only.
-- [x] 1.2 Uruchomienie fixture na lokalnym EXE Release uzyskuje stronę rzeczywistego WebView2 w limicie 60 s i kończy własną instancję.
-- [x] 1.3 Błędna ścieżka EXE i niedostępny endpoint kończą się jednoznacznym błędem w ograniczonym czasie, bez osieroconej instancji.
+- [x] 1.1 `dotnet build TimesheetAssistant.sln` przechodzi z zachowanym TargetFrameworks Windows-only. — b77224a
+- [x] 1.2 Uruchomienie fixture na lokalnym EXE Release uzyskuje stronę rzeczywistego WebView2 w limicie 60 s i kończy własną instancję. — b77224a
+- [x] 1.3 Błędna ścieżka EXE i niedostępny endpoint kończą się jednoznacznym błędem w ograniczonym czasie, bez osieroconej instancji. — b77224a
 
 ### Phase 2: Test interakcji i diagnostyka
 
