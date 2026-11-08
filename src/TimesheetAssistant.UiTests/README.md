@@ -44,7 +44,11 @@ there containing `desktop.log`: timestamped startup, profile, PID, CDP endpoint,
 interaction stage and cleanup evidence. Logs remain on success and failure.
 On failure, `failure.png` and `trace.zip` are saved if the page and tracing are
 available. Failures before connection cannot produce page artifacts. Diagnostic
-write failures do not replace the original exception. Successful traces are discarded.
+write failures do not replace the original exception. Before terminating the app,
+cleanup saves `cleanup.png` and the trace if no test failure was already captured.
+These temporary diagnostics are deleted only after the entire cleanup succeeds;
+a cleanup failure retains them and logs its exception. Test-failure artifacts are
+retained even when cleanup succeeds.
 
 To check failure diagnostics, temporarily change the final expected status to
 `Current count: 2`, run the test, and restore the assertion in a `finally` block.

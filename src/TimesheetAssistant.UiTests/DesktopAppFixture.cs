@@ -17,6 +17,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
     private readonly DesktopTimeouts timeouts;
     private readonly string artifactDirectory = Path.Combine(FindRepositoryRoot(), "artifacts", "desktop-ui", Guid.NewGuid().ToString("N"));
     private bool tracing;
+    private bool failureCaptured;
     private string stage = "configuration";
 
     private static string FindRepositoryRoot()
@@ -41,13 +42,19 @@ public sealed class DesktopAppFixture : IAsyncLifetime
 
     public async Task CaptureFailureAsync(Exception error)
     {
+        failureCaptured = true;
         RecordStage($"failure during {stage}: {error}");
+        await SaveScreenshotAsync("failure.png");
+        await StopTraceAsync(save: true);
+    }
+
+    private async Task SaveScreenshotAsync(string fileName)
+    {
         if (Page is not null)
         {
-            try { await Page.ScreenshotAsync(new() { Path = Path.Combine(artifactDirectory, "failure.png"), Timeout = UiTimeoutMilliseconds }); }
+            try { await Page.ScreenshotAsync(new() { Path = Path.Combine(artifactDirectory, fileName), Timeout = UiTimeoutMilliseconds }); }
             catch (Exception failure) { RecordStage($"Screenshot unavailable: {failure.Message}"); }
         }
-        await StopTraceAsync(save: true);
     }
 
     private async Task StopTraceAsync(bool save)
@@ -166,7 +173,28 @@ public sealed class DesktopAppFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await StopTraceAsync(save: false);
+        // Once the job is terminated, page diagnostics cannot be recovered.
+        if (!failureCaptured) await SaveScreenshotAsync("cleanup.png");
+        await StopTraceAsync(save: true);
+        try { await CleanupCoreAsync(); }
+        catch (Exception error)
+        {
+            RecordStage($"cleanup failed: {error}");
+            throw;
+        }
+        if (!failureCaptured)
+        {
+            try
+            {
+                File.Delete(Path.Combine(artifactDirectory, "cleanup.png"));
+                File.Delete(Path.Combine(artifactDirectory, "trace.zip"));
+            }
+            catch (Exception error) { RecordStage($"Could not remove successful cleanup diagnostics: {error.Message}"); }
+        }
+    }
+
+    private async Task CleanupCoreAsync()
+    {
         RecordStage("cleanup started");
         using var cleanup = new CancellationTokenSource(timeouts.Cleanup);
         var processesAndProfileRemoved = false;

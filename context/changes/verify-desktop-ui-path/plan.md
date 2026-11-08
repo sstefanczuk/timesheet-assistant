@@ -187,13 +187,13 @@ Brak danych do migracji. Test nie zapisuje wpisów pracy. Wycofanie zmiany usuwa
 
 #### Automated
 
-- [x] 2.1 Dwa kolejne uruchomienia `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx` z ustawioną ścieżką EXE przechodzą scenariusz 0 → 1 na różnych profilach.
-- [x] 2.2 Wymuszony błąd asercji zachowuje TRX, diagnostykę startu i zrzut/trace dostępnej strony; cleanup działa także po błędzie.
-- [x] 2.3 Audyt `dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json` jest wykonany, a ewentualne wyniki jawnie ocenione.
+- [x] 2.1 Dwa kolejne uruchomienia `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx` z ustawioną ścieżką EXE przechodzą scenariusz 0 → 1 na różnych profilach. — a101a7d
+- [x] 2.2 Wymuszony błąd asercji zachowuje TRX, diagnostykę startu i zrzut/trace dostępnej strony; cleanup działa także po błędzie. — a101a7d
+- [x] 2.3 Audyt `dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json` jest wykonany, a ewentualne wyniki jawnie ocenione. — a101a7d
 
 #### Manual
 
-- [x] 2.4 Autor potwierdza widoczne przejście Home → Counter i zmianę 0 → 1; po teście zwykła aplikacja nadal uruchamia się poprawnie, a niezależne sesje WebView2 pozostają otwarte.
+- [x] 2.4 Autor potwierdza widoczne przejście Home → Counter i zmianę 0 → 1; po teście zwykła aplikacja nadal uruchamia się poprawnie, a niezależne sesje WebView2 pozostają otwarte. — a101a7d
 
 ### Phase 3: CI i dokumentacja
 
