@@ -118,7 +118,8 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 WorkingDirectory = Path.GetDirectoryName(executable)!
             };
             start.Environment["WEBVIEW2_USER_DATA_FOLDER"] = ProfileDirectory;
-            start.Environment["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = $"--remote-debugging-port={port} --remote-debugging-address=127.0.0.1";
+            var runtimeLog = Path.Combine(artifactDirectory, "webview2.log");
+            start.Environment["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = $"--remote-debugging-port={port} --remote-debugging-address=127.0.0.1 --enable-logging --log-file=\"{runtimeLog}\"";
             application = job.StartApplication(start, timeouts.Cleanup);
             RecordStage($"waiting for CDP; PID={application.Id}; endpoint={endpoint}");
             var creation = Playwright.CreateAsync();

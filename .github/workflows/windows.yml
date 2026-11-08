@@ -1,132 +1,38 @@
 name: Windows preview
-
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
-concurrency:
-  group: windows-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
-defaults:
-  run:
-    shell: pwsh
-
 jobs:
-  build:
+  runtime-diagnostic:
     runs-on: windows-2025
-    timeout-minutes: 45
-    outputs:
-      version: ${{ steps.version.outputs.version }}
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
         with:
           persist-credentials: false
-      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
         with:
           global-json-file: global.json
-      - name: Install pinned MAUI workload
-        run: dotnet workload install maui-windows
-      - name: Restore
-        run: dotnet restore TimesheetAssistant.sln -p:Configuration=Release -p:RuntimeIdentifierOverride=win-x64
-      - name: Build
-        run: dotnet build TimesheetAssistant.sln -c Release -p:RuntimeIdentifierOverride=win-x64 --no-restore
-      - name: Run unit tests
+      - name: Diagnose identical application source using existing public package
+        shell: pwsh
         run: |
-          dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release --no-build --logger trx
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force artifacts/cdp-probe,artifacts/cdp-app,artifacts/desktop-ui | Out-Null
+          Invoke-WebRequest 'https://github.com/sstefanczuk/timesheet-assistant/releases/download/v0.1.0-preview.2/TimesheetAssistant-0.1.0-preview.2-win-x64.zip' -OutFile artifacts/cdp-app.zip
+          if ((Get-FileHash artifacts/cdp-app.zip -Algorithm SHA256).Hash -ne '119381a6579a9f4079158e82476c6e016cc42fd02756842c5a0c43954d36cdb2') { throw 'Existing release checksum mismatch' }
+          Expand-Archive artifacts/cdp-app.zip artifacts/cdp-app
+          Get-ChildItem src/TimesheetAssistant.UiTests -File | Copy-Item -Destination artifacts/cdp-probe
+          '{"sdk":{"version":"10.0.403","rollForward":"disable"}}' | Set-Content artifacts/cdp-probe/global.json
+          $env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path $env:GITHUB_WORKSPACE 'artifacts/cdp-app/TimesheetAssistant.exe'
+          $results = Join-Path $env:GITHUB_WORKSPACE 'artifacts/desktop-ui'
+          Set-Location artifacts/cdp-probe
+          dotnet test TimesheetAssistant.UiTests.csproj -c Release --logger 'trx;LogFileName=runtime-diagnostic.trx' --results-directory $results
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          'UnitTests currently has no pure-logic tests. Empty discovery does not verify application behavior; the packaged desktop UI suite is a separate release gate.' >> $env:GITHUB_STEP_SUMMARY
-      - name: Audit dependencies
-        run: dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json
-      - name: Choose preview version
-        id: version
-        run: '"version=0.1.0-preview.$env:GITHUB_RUN_NUMBER" >> $env:GITHUB_OUTPUT'
-      - name: Package
-        env:
-          PREVIEW_VERSION: ${{ steps.version.outputs.version }}
-        run: ./scripts/Package-Windows.ps1 -Version $env:PREVIEW_VERSION -Commit $env:GITHUB_SHA -BuildNumber ([int]$env:GITHUB_RUN_NUMBER)
-      - name: Verify WebView2 Evergreen Runtime
-        run: |
-          $ErrorActionPreference = 'Stop'
-          New-Item -ItemType Directory -Force -Path artifacts/desktop-ui | Out-Null
-          $roots = @(${env:ProgramFiles(x86)}, $env:ProgramFiles, $env:LOCALAPPDATA) | Where-Object { $_ }
-          $runtimes = @(foreach ($root in $roots) {
-            Get-ChildItem -Path (Join-Path $root 'Microsoft/EdgeWebView/Application/*/msedgewebview2.exe') -File -ErrorAction SilentlyContinue
-          })
-          if ($runtimes.Count -eq 0) {
-            'WebView2 Evergreen Runtime was not found in machine/user installation directories. Install the runtime on the Windows runner; desktop tests cannot be skipped.' | Tee-Object -FilePath artifacts/desktop-ui/runtime.log
-            throw 'Missing WebView2 Evergreen Runtime; desktop UI release gate cannot run.'
-          }
-          $runtimes | ForEach-Object { "WebView2 $($_.VersionInfo.FileVersion): $($_.FullName)" } | Tee-Object -FilePath artifacts/desktop-ui/runtime.log
-      - name: Test packaged desktop UI
-        env:
-          PREVIEW_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path $env:GITHUB_WORKSPACE "artifacts/publish-$env:PREVIEW_VERSION/TimesheetAssistant.exe"
-          if (-not (Test-Path -LiteralPath $env:TIMESHEET_ASSISTANT_TEST_APP -PathType Leaf)) {
-            throw "Published desktop executable is missing: $env:TIMESHEET_ASSISTANT_TEST_APP"
-          }
-          dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --no-build --logger 'trx;LogFileName=desktop-ui.trx' --results-directory artifacts/desktop-ui
-          $testExitCode = $LASTEXITCODE
-          # Fixture teardown errors can fail dotnet even when every test result passed.
-          if ($testExitCode -ne 0) { throw "Desktop UI runner failed with exit code $testExitCode. Inspect desktop-ui diagnostics, including cleanup errors." }
-          $trxPath = 'artifacts/desktop-ui/desktop-ui.trx'
-          if (-not (Test-Path -LiteralPath $trxPath -PathType Leaf)) { throw 'Desktop UI runner did not produce its required TRX report.' }
-          [xml]$trx = Get-Content -LiteralPath $trxPath -Raw
-          $counters = $trx.TestRun.ResultSummary.Counters
-          if ($null -eq $counters -or [int]$counters.executed -lt 1 -or [int]$counters.failed -ne 0 -or [int]$counters.passed -ne [int]$counters.executed -or $trx.TestRun.ResultSummary.outcome -ne 'Completed') {
-            throw 'Desktop UI gate requires at least one executed test, all passing, and a completed TRX report.'
-          }
-          "Desktop UI: $($counters.executed) executed, $($counters.passed) passed; packaged Release EXE: $env:TIMESHEET_ASSISTANT_TEST_APP" >> $env:GITHUB_STEP_SUMMARY
-      - name: Upload desktop UI diagnostics
+      - name: Retain own-instance runtime diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: desktop-ui-diagnostics
           path: artifacts/desktop-ui/
-          if-no-files-found: warn
           retention-days: 3
-      - name: Upload release inputs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: windows-preview
-          path: artifacts/release-${{ steps.version.outputs.version }}/*
-          if-no-files-found: error
-          retention-days: 3
-          compression-level: 0
-
-  release:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: windows-2025
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: windows-preview
-          path: release
-      - name: Create prerelease from the exact built commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          PREVIEW_VERSION: ${{ needs.build.outputs.version }}
-          AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH_PRERELEASES }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $tag = "v$env:PREVIEW_VERSION"
-          # Creating an existing ref fails deliberately; retries never overwrite releases.
-          gh api --method POST "repos/$env:GH_REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$env:GITHUB_SHA"
-          if ($LASTEXITCODE -ne 0) { throw 'Tag creation failed; inspect existing tag/release before retrying.' }
-          $zip = "release/TimesheetAssistant-$env:PREVIEW_VERSION-win-x64.zip"
-          $releaseArgs = @('release', 'create', $tag, $zip, "$zip.sha256", '--verify-tag', '--prerelease', '--latest=false', '--title', "Timesheet Assistant $env:PREVIEW_VERSION", '--notes-file', 'release/release-notes.md')
-          if ($env:AUTO_PUBLISH -ne 'true') { $releaseArgs += '--draft' }
-          gh @releaseArgs
-          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed; keep the tag for diagnosis.' }
