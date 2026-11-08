@@ -15,11 +15,15 @@ jobs:
         with:
           global-json-file: global.json
       - name: Diagnose identical application source using existing public package
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force artifacts/cdp-probe,artifacts/cdp-app,artifacts/desktop-ui | Out-Null
-          Invoke-WebRequest 'https://github.com/sstefanczuk/timesheet-assistant/releases/download/v0.1.0-preview.2/TimesheetAssistant-0.1.0-preview.2-win-x64.zip' -OutFile artifacts/cdp-app.zip
+          gh release download v0.1.0-preview.2 --repo sstefanczuk/timesheet-assistant --pattern TimesheetAssistant-0.1.0-preview.2-win-x64.zip --dir artifacts/release-download
+          if ($LASTEXITCODE -ne 0) { throw 'Existing release download failed' }
+          Copy-Item artifacts/release-download/TimesheetAssistant-0.1.0-preview.2-win-x64.zip artifacts/cdp-app.zip
           if ((Get-FileHash artifacts/cdp-app.zip -Algorithm SHA256).Hash -ne '119381a6579a9f4079158e82476c6e016cc42fd02756842c5a0c43954d36cdb2') { throw 'Existing release checksum mismatch' }
           Expand-Archive artifacts/cdp-app.zip artifacts/cdp-app
           Get-ChildItem src/TimesheetAssistant.UiTests -File | Copy-Item -Destination artifacts/cdp-probe
@@ -36,3 +40,4 @@ jobs:
           name: desktop-ui-diagnostics
           path: artifacts/desktop-ui/
           retention-days: 3
+
