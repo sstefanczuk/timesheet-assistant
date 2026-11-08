@@ -72,6 +72,10 @@ jobs:
           if (-not (Test-Path -LiteralPath $env:TIMESHEET_ASSISTANT_TEST_APP -PathType Leaf)) {
             throw "Published desktop executable is missing: $env:TIMESHEET_ASSISTANT_TEST_APP"
           }
+          $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+          $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+          Write-Host "Hosted runner process elevated: $($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+          $identity.Dispose()
           dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --no-build --logger 'trx;LogFileName=desktop-ui.trx' --results-directory artifacts/desktop-ui
           $testExitCode = $LASTEXITCODE
           # Fixture teardown errors can fail dotnet even when every test result passed.
@@ -130,3 +134,4 @@ jobs:
           if ($env:AUTO_PUBLISH -ne 'true') { $releaseArgs += '--draft' }
           gh @releaseArgs
           if ($LASTEXITCODE -ne 0) { throw 'Release creation failed; keep the tag for diagnosis.' }
+
