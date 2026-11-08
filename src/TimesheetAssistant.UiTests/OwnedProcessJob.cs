@@ -103,8 +103,8 @@ internal sealed class OwnedProcessJob : IDisposable
             }
             else
             {
-                // UAC-disabled hosts have no linked token. LUA_TOKEN strips admin groups/privileges.
-                if (!CreateRestrictedToken(current, 0x4 | 0x1, 0, IntPtr.Zero, 0, IntPtr.Zero, 0, IntPtr.Zero, out token))
+                // Keep the LUA user baseline; extra privilege stripping can prevent Chromium child startup.
+                if (!CreateRestrictedToken(current, 0x4, 0, IntPtr.Zero, 0, IntPtr.Zero, 0, IntPtr.Zero, out token))
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not create standard desktop launch token.");
                 restrictedToken = true;
             }
