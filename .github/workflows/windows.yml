@@ -51,5 +51,8 @@ jobs:
           } catch (Exception error) { Console.WriteLine($"Exact launcher: {error}"); throw; }
           finally { job.Terminate(); }
           '@ | Set-Content artifacts/launch-probe/Program.cs
-          dotnet run --project artifacts/launch-probe/LaunchProbe.csproj -c Release
+          '{"sdk":{"version":"10.0.403","rollForward":"disable"}}' | Set-Content artifacts/launch-probe/global.json
+          Set-Location artifacts/launch-probe
+          dotnet run --project LaunchProbe.csproj -c Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
