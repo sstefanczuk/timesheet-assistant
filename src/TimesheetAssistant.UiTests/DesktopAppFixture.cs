@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 using Microsoft.Playwright;
 
 namespace TimesheetAssistant.UiTests;
@@ -100,6 +101,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             throw new FileNotFoundException("Desktop test executable does not exist: " + executable, executable);
 
         using var startup = new CancellationTokenSource(timeouts.Startup);
+        var startupElapsed = Stopwatch.StartNew();
         var portReservation = new TcpListener(IPAddress.Loopback, 0);
         portReservation.Start();
         var port = ((IPEndPoint)portReservation.LocalEndpoint).Port;
@@ -126,23 +128,61 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 _ = creation.ContinueWith(task => { if (task.IsCompletedSuccessfully) task.Result.Dispose(); }, TaskScheduler.Default);
                 throw;
             }
-            while (true)
+            using var discoveryHandler = new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false };
+            using var discovery = new HttpClient(discoveryHandler) { Timeout = Timeout.InfiniteTimeSpan };
+            string? lastReadiness = null;
+            void ReportReadiness(string reason)
+            {
+                if (lastReadiness == reason) return;
+                lastReadiness = reason;
+                RecordStage($"CDP readiness; {reason}; endpoint={endpoint}");
+            }
+            Uri? websocket = null;
+            while (websocket is null)
             {
                 startup.Token.ThrowIfCancellationRequested();
-                if (application.HasExited)
-                    throw new InvalidOperationException($"Desktop process {application.Id} exited before WebView2 connected (exit code {application.ExitCode}).");
-                var owner = OwnedProcessJob.ListenerOwner(port);
+                var owner = GetOwnedListener(port, endpoint);
                 if (owner is not null)
                 {
-                    if (!job.Contains(owner.Value))
-                        throw new InvalidOperationException($"CDP port collision at {endpoint}: listener PID {owner} is not owned by desktop PID {application.Id}.");
-                    RecordStage($"connecting; PID={application.Id}; listener={owner}; endpoint={endpoint}");
-                    browser = await playwright.Chromium.ConnectOverCDPAsync(endpoint,
-                        new() { Timeout = (float)timeouts.Startup.TotalMilliseconds }).WaitAsync(startup.Token);
-                    break;
+                    using var request = CancellationTokenSource.CreateLinkedTokenSource(startup.Token);
+                    request.CancelAfter(TimeSpan.FromSeconds(2));
+                    try
+                    {
+                        using var response = await discovery.GetAsync(endpoint + "/json/version/", request.Token);
+                        if (!response.IsSuccessStatusCode)
+                            throw new InvalidOperationException($"Owned CDP discovery returned HTTP {(int)response.StatusCode}.");
+                        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(request.Token));
+                        var value = document.RootElement.GetProperty("webSocketDebuggerUrl").GetString();
+                        if (!Uri.TryCreate(value, UriKind.Absolute, out var candidate)
+                            || candidate.Scheme != "ws" || candidate.Port != port
+                            || !(candidate.Host == "127.0.0.1" || candidate.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+                            || candidate.UserInfo.Length != 0 || candidate.Fragment.Length != 0)
+                            throw new InvalidOperationException("Owned CDP discovery supplied an invalid websocket endpoint; expected ws://loopback on the reserved port.");
+                        if (GetOwnedListener(port, endpoint) == owner)
+                            websocket = new UriBuilder(candidate) { Host = "127.0.0.1" }.Uri;
+                        else ReportReadiness("owned listener changed during discovery");
+                    }
+                    catch (HttpRequestException error)
+                    {
+                        startup.Token.ThrowIfCancellationRequested();
+                        ReportReadiness($"listener={owner}; HTTP transport {error.HttpRequestError}");
+                    }
+                    catch (OperationCanceledException) when (!startup.IsCancellationRequested)
+                    {
+                        ReportReadiness($"listener={owner}; HTTP request exceeded 2s");
+                    }
                 }
-                await Task.Delay(100, startup.Token);
+                else ReportReadiness("waiting for owned listener");
+                if (websocket is null) await Task.Delay(100, startup.Token);
             }
+            startup.Token.ThrowIfCancellationRequested();
+            var attachOwner = GetOwnedListener(port, endpoint);
+            if (attachOwner is null) throw new InvalidOperationException("Owned CDP listener disappeared before websocket attachment.");
+            var remainingStartup = timeouts.Startup - startupElapsed.Elapsed;
+            if (remainingStartup <= TimeSpan.Zero) throw new TimeoutException("Desktop startup budget expired before websocket attachment.");
+            RecordStage($"connecting websocket; PID={application.Id}; listener={attachOwner}; endpoint={websocket}");
+            browser = await playwright.Chromium.ConnectOverCDPAsync(websocket.AbsoluteUri,
+                new() { Timeout = (float)remainingStartup.TotalMilliseconds }).WaitAsync(startup.Token);
             while (Page is null)
             {
                 startup.Token.ThrowIfCancellationRequested();
@@ -169,6 +209,21 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             throw new InvalidOperationException($"Desktop startup/connection failed at {endpoint} within {timeouts.Startup.TotalSeconds}s. Check WebView2 Evergreen Runtime and port availability. {error.Message}",
                 cleanupError is null ? error : new AggregateException(error, cleanupError));
         }
+    }
+
+    private uint? GetOwnedListener(int port, string endpoint)
+    {
+        if (application!.HasExited)
+            throw new InvalidOperationException($"Desktop process {application.Id} exited before WebView2 connected.");
+        var owner = OwnedProcessJob.ListenerOwner(port);
+        if (owner is null) return null;
+        try
+        {
+            if (!job!.Contains(owner.Value))
+                throw new InvalidOperationException($"CDP port collision at {endpoint}: listener PID {owner} is not owned by desktop PID {application.Id}.");
+        }
+        catch (ArgumentException) { return null; } // Listener exited between the TCP snapshot and ownership check.
+        return owner;
     }
 
     public async Task DisposeAsync()
