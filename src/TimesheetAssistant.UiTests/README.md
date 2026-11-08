@@ -32,11 +32,34 @@ Controlled probes can instantiate the fixture with a custom options record.
 Desktop tests do not share an instance in parallel. No global environment or
 normal application debug setting changes.
 
-Phase 1 includes a real-process connection probe that recognizes Home. Counter
-interaction and failure screenshot/trace capture belong to phase 2; CI execution
-belongs to phase 3. Counter will be temporary: S-01 replaces it with work-entry
-tests including isolated storage and explicit restart/read verification. A
-WebView2 profile is not domain-storage isolation. This probe proves no persistence.
+The single desktop smoke test recognizes Home, opens a collapsed navigation menu,
+follows Counter, checks `Current count: 0`, clicks `Click me` and checks
+`Current count: 1`. Locators use roles and accessible names where provided. The
+status has no accessible name, so its text is asserted. Playwright waits within
+the UI budget without fixed UI sleeps. Run twice to check independent profiles.
+
+`desktop.runsettings` routes `--logger trx` results to the ignored repository
+`artifacts/desktop-ui/` directory. Each fixture creates a unique subdirectory
+there containing `desktop.log`: timestamped startup, profile, PID, CDP endpoint,
+interaction stage and cleanup evidence. Logs remain on success and failure.
+On failure, `failure.png` and `trace.zip` are saved if the page and tracing are
+available. Failures before connection cannot produce page artifacts. Diagnostic
+write failures do not replace the original exception. Successful traces are discarded.
+
+To check failure diagnostics, temporarily change the final expected status to
+`Current count: 2`, run the test, and restore the assertion in a `finally` block.
+Expect a failed TRX, screenshot, trace, stage log and completed cleanup. Never
+commit the deliberately failing assertion. From this project directory, inspect
+a retained trace with:
+
+```powershell
+pwsh bin/Debug/net10.0-windows/playwright.ps1 show-trace <path-to-trace.zip>
+```
+
+Counter is temporary: S-01 replaces this scenario with work-entry tests, retaining
+the fixture and adding isolated domain storage and explicit restart/read checks.
+A WebView2 profile is not domain-storage isolation. This smoke test proves no
+work-entry persistence. CI execution belongs to phase 3.
 
 Version evidence checked on 2026-11-07: current stable
 [Microsoft.Playwright 1.64.1](https://www.nuget.org/packages/Microsoft.Playwright/1.64.1).

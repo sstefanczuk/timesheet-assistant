@@ -15,6 +15,48 @@ public sealed record DesktopTimeouts
 public sealed class DesktopAppFixture : IAsyncLifetime
 {
     private readonly DesktopTimeouts timeouts;
+    private readonly string artifactDirectory = Path.Combine(FindRepositoryRoot(), "artifacts", "desktop-ui", Guid.NewGuid().ToString("N"));
+    private bool tracing;
+    private string stage = "configuration";
+
+    private static string FindRepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+            if (File.Exists(Path.Combine(directory.FullName, "TimesheetAssistant.sln"))) return directory.FullName;
+        throw new InvalidOperationException("Cannot locate the repository artifact directory from the test output.");
+    }
+
+    public string ArtifactDirectory => artifactDirectory;
+
+    public void RecordStage(string value)
+    {
+        stage = value;
+        try
+        {
+            Directory.CreateDirectory(artifactDirectory);
+            File.AppendAllText(Path.Combine(artifactDirectory, "desktop.log"), $"{DateTimeOffset.UtcNow:O} [{stage}]\n");
+        }
+        catch (Exception error) { Console.Error.WriteLine($"Could not write desktop diagnostics: {error.Message}"); }
+    }
+
+    public async Task CaptureFailureAsync(Exception error)
+    {
+        RecordStage($"failure during {stage}: {error}");
+        if (Page is not null)
+        {
+            try { await Page.ScreenshotAsync(new() { Path = Path.Combine(artifactDirectory, "failure.png"), Timeout = UiTimeoutMilliseconds }); }
+            catch (Exception failure) { RecordStage($"Screenshot unavailable: {failure.Message}"); }
+        }
+        await StopTraceAsync(save: true);
+    }
+
+    private async Task StopTraceAsync(bool save)
+    {
+        if (!tracing) return;
+        tracing = false;
+        try { await Page.Context.Tracing.StopAsync(new() { Path = save ? Path.Combine(artifactDirectory, "trace.zip") : null }).WaitAsync(timeouts.Ui); }
+        catch (Exception error) { RecordStage($"Trace unavailable: {error.Message}"); }
+    }
     private Process? application;
     private OwnedProcessJob? job;
     private IPlaywright? playwright;
@@ -29,6 +71,17 @@ public sealed class DesktopAppFixture : IAsyncLifetime
     public float UiTimeoutMilliseconds => (float)timeouts.Ui.TotalMilliseconds;
 
     public async Task InitializeAsync()
+    {
+        RecordStage($"configuration; profile={ProfileDirectory}; artifacts={artifactDirectory}");
+        try { await InitializeCoreAsync(); }
+        catch (Exception error)
+        {
+            await CaptureFailureAsync(error);
+            throw;
+        }
+    }
+
+    private async Task InitializeCoreAsync()
     {
         if (!OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException("Desktop UI tests require Windows and WebView2 Evergreen Runtime.");
@@ -47,6 +100,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
         var endpoint = $"http://127.0.0.1:{port}";
         try
         {
+            RecordStage($"launch; executable={executable}; endpoint={endpoint}");
             Directory.CreateDirectory(ProfileDirectory);
             job = new OwnedProcessJob();
             var start = new ProcessStartInfo(executable)
@@ -57,6 +111,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             start.Environment["WEBVIEW2_USER_DATA_FOLDER"] = ProfileDirectory;
             start.Environment["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = $"--remote-debugging-port={port} --remote-debugging-address=127.0.0.1";
             application = job.StartApplication(start, timeouts.Cleanup);
+            RecordStage($"waiting for CDP; PID={application.Id}; endpoint={endpoint}");
             var creation = Playwright.CreateAsync();
             try { playwright = await creation.WaitAsync(startup.Token); }
             catch
@@ -74,6 +129,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 {
                     if (!job.Contains(owner.Value))
                         throw new InvalidOperationException($"CDP port collision at {endpoint}: listener PID {owner} is not owned by desktop PID {application.Id}.");
+                    RecordStage($"connecting; PID={application.Id}; listener={owner}; endpoint={endpoint}");
                     browser = await playwright.Chromium.ConnectOverCDPAsync(endpoint,
                         new() { Timeout = (float)timeouts.Startup.TotalMilliseconds }).WaitAsync(startup.Token);
                     break;
@@ -88,11 +144,19 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 Page = browser.Contexts.SelectMany(context => context.Pages).FirstOrDefault()!;
                 if (Page is null) await Task.Delay(100, startup.Token);
             }
+            RecordStage($"connected; PID={application.Id}; endpoint={endpoint}; page={Page.Url}");
+            try
+            {
+                await Page.Context.Tracing.StartAsync(new() { Screenshots = true, Snapshots = true, Sources = true }).WaitAsync(startup.Token);
+                tracing = true;
+            }
+            catch (Exception error) { RecordStage($"Trace start unavailable: {error.Message}"); }
             Page.SetDefaultTimeout((float)timeouts.Ui.TotalMilliseconds);
             Page.SetDefaultNavigationTimeout((float)timeouts.Ui.TotalMilliseconds);
         }
         catch (Exception error)
         {
+            await CaptureFailureAsync(error);
             Exception? cleanupError = null;
             try { await DisposeAsync(); } catch (Exception failure) { cleanupError = failure; }
             throw new InvalidOperationException($"Desktop startup/connection failed at {endpoint} within {timeouts.Startup.TotalSeconds}s. Check WebView2 Evergreen Runtime and port availability. {error.Message}",
@@ -102,7 +166,10 @@ public sealed class DesktopAppFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        await StopTraceAsync(save: false);
+        RecordStage("cleanup started");
         using var cleanup = new CancellationTokenSource(timeouts.Cleanup);
+        var processesAndProfileRemoved = false;
         try
         {
             // Terminate only this Windows job, including descendants after the app exits.
@@ -124,6 +191,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 catch (IOException) { await Task.Delay(50, cleanup.Token); }
                 catch (UnauthorizedAccessException) { await Task.Delay(50, cleanup.Token); }
             }
+            processesAndProfileRemoved = true;
         }
         finally
         {
@@ -134,6 +202,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             if (playwright is not null)
                 await Task.Run(playwright.Dispose).WaitAsync(cleanup.Token);
             playwright = null;
+            RecordStage(processesAndProfileRemoved ? "cleanup completed" : "cleanup incomplete; inspect test cleanup error");
         }
     }
 }
