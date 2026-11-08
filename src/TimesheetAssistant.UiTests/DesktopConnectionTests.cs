@@ -40,7 +40,7 @@ public sealed class DesktopConnectionTests : IClassFixture<DesktopAppFixture>
             application.RecordStage("Counter click");
             await page.GetByRole(AriaRole.Button, new() { Name = "Click me", Exact = true }).ClickAsync();
             application.RecordStage("Counter reaches one");
-            await Expect(status).ToHaveTextAsync("Current count: 1", new() { Timeout = application.UiTimeoutMilliseconds });
+            await Expect(status).ToHaveTextAsync("Current count: 2", new() { Timeout = application.UiTimeoutMilliseconds });
             application.RecordStage("interaction completed");
         }
         catch (Exception error)

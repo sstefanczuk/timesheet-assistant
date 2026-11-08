@@ -101,32 +101,15 @@ jobs:
           retention-days: 3
           compression-level: 0
 
+
   release:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Eligible on this probe branch; needs: build must prevent this inert sentinel.
+    if: github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: windows-2025
-    timeout-minutes: 10
+    timeout-minutes: 2
     permissions:
-      contents: write
+      contents: read
     steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: windows-preview
-          path: release
-      - name: Create prerelease from the exact built commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          PREVIEW_VERSION: ${{ needs.build.outputs.version }}
-          AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH_PRERELEASES }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $tag = "v$env:PREVIEW_VERSION"
-          # Creating an existing ref fails deliberately; retries never overwrite releases.
-          gh api --method POST "repos/$env:GH_REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$env:GITHUB_SHA"
-          if ($LASTEXITCODE -ne 0) { throw 'Tag creation failed; inspect existing tag/release before retrying.' }
-          $zip = "release/TimesheetAssistant-$env:PREVIEW_VERSION-win-x64.zip"
-          $releaseArgs = @('release', 'create', $tag, $zip, "$zip.sha256", '--verify-tag', '--prerelease', '--latest=false', '--title', "Timesheet Assistant $env:PREVIEW_VERSION", '--notes-file', 'release/release-notes.md')
-          if ($env:AUTO_PUBLISH -ne 'true') { $releaseArgs += '--draft' }
-          gh @releaseArgs
-          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed; keep the tag for diagnosis.' }
+      - name: Release must be blocked by the failed build
+        run: throw 'CI gate failed to block the release dependency sentinel.'
