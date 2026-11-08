@@ -30,7 +30,11 @@ jobs:
           using System.Text;
           using Microsoft.Win32.SafeHandles;
           using TimesheetAssistant.UiTests;
-          static string Describe() => $"station={Native.Name(Native.GetProcessWindowStation())}; desktop={Native.Name(Native.GetThreadDesktop(Native.GetCurrentThreadId())))}; session={Process.GetCurrentProcess().SessionId}";
+          static string Describe() {
+              var station = Native.Name(Native.GetProcessWindowStation());
+              var desktop = Native.Name(Native.GetThreadDesktop(Native.GetCurrentThreadId()));
+              return $"station={station}; desktop={desktop}; session={Process.GetCurrentProcess().SessionId}";
+          }
           if (Environment.GetEnvironmentVariable("CONTEXT_PROBE_CHILD") == "1") {
               File.WriteAllText(Environment.GetEnvironmentVariable("CONTEXT_PROBE_OUTPUT")!, Describe());
               return;
