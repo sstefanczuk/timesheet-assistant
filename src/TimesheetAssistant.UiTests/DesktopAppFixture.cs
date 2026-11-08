@@ -19,6 +19,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
     private readonly string artifactDirectory = Path.Combine(FindRepositoryRoot(), "artifacts", "desktop-ui", Guid.NewGuid().ToString("N"));
     private bool tracing;
     private bool failureCaptured;
+    private string? lastProcessDiagnosticError;
     private string stage = "configuration";
 
     private static string FindRepositoryRoot()
@@ -122,6 +123,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             start.Environment["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = $"--remote-debugging-port={port} --remote-debugging-address=127.0.0.1 --enable-logging --log-file=\"{runtimeLog}\"";
             application = job.StartApplication(start, timeouts.Cleanup);
             RecordStage($"waiting for CDP; PID={application.Id}; endpoint={endpoint}");
+            ObserveOwnedProcesses();
             var creation = Playwright.CreateAsync();
             try { playwright = await creation.WaitAsync(startup.Token); }
             catch
@@ -141,6 +143,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             Uri? websocket = null;
             while (websocket is null)
             {
+                ObserveOwnedProcesses();
                 startup.Token.ThrowIfCancellationRequested();
                 var owner = GetOwnedListener(port, endpoint);
                 if (owner is not null)
@@ -186,6 +189,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 new() { Timeout = (float)remainingStartup.TotalMilliseconds }).WaitAsync(startup.Token);
             while (Page is null)
             {
+                ObserveOwnedProcesses();
                 startup.Token.ThrowIfCancellationRequested();
                 if (application.HasExited)
                     throw new InvalidOperationException("Desktop process exited while waiting for its WebView2 page.");
@@ -204,12 +208,33 @@ public sealed class DesktopAppFixture : IAsyncLifetime
         }
         catch (Exception error)
         {
+            ObserveOwnedProcesses();
             await CaptureFailureAsync(error);
             Exception? cleanupError = null;
             try { await DisposeAsync(); } catch (Exception failure) { cleanupError = failure; }
             throw new InvalidOperationException($"Desktop startup/connection failed at {endpoint} within {timeouts.Startup.TotalSeconds}s. Check WebView2 Evergreen Runtime and port availability. {error.Message}",
                 cleanupError is null ? error : new AggregateException(error, cleanupError));
         }
+    }
+
+    private void ObserveOwnedProcesses(bool cleanup = false)
+    {
+        if (job is null) return;
+        var currentStage = stage;
+        try
+        {
+            foreach (var observation in job.ObserveProcesses(cleanup)) RecordStage(observation);
+        }
+        catch (Exception error)
+        {
+            var reason = $"Owned process diagnostics unavailable: {error.GetType().Name}; HRESULT=0x{error.HResult:X8}";
+            if (reason != lastProcessDiagnosticError)
+            {
+                lastProcessDiagnosticError = reason;
+                RecordStage(reason);
+            }
+        }
+        finally { stage = currentStage; }
     }
 
     private uint? GetOwnedListener(int port, string endpoint)
@@ -259,9 +284,11 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             // Terminate only this Windows job, including descendants after the app exits.
             if (job is not null)
             {
+                ObserveOwnedProcesses(); // Capture natural exits before test-driven termination.
                 job.Terminate();
                 while (job.HasProcesses)
                     await Task.Delay(50, cleanup.Token);
+                ObserveOwnedProcesses(cleanup: true);
             }
             if (application is { HasExited: false })
             {

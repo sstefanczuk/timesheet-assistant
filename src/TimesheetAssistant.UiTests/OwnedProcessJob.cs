@@ -12,6 +12,8 @@ namespace TimesheetAssistant.UiTests;
 internal sealed class OwnedProcessJob : IDisposable
 {
     private readonly SafeFileHandle handle = CreateJobObject(IntPtr.Zero, null);
+    private readonly Dictionary<uint, (SafeFileHandle Handle, string Name)> observedProcesses = new();
+    private readonly HashSet<uint> reportedExits = new();
     public OwnedProcessJob()
     {
         if (handle.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -170,6 +172,56 @@ internal sealed class OwnedProcessJob : IDisposable
         if (!IsProcessInJob(process.Handle, handle, out var result)) throw new Win32Exception(Marshal.GetLastWin32Error());
         return result;
     }
+    public IReadOnlyList<uint> ReadProcessIds()
+    {
+        const int capacity = 64 * 1024;
+        var data = Marshal.AllocHGlobal(capacity);
+        try
+        {
+            if (!QueryInformationJobObject(handle, 3, data, capacity, IntPtr.Zero))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not read owned job process IDs.");
+            var count = Marshal.ReadInt32(data, 4);
+            if (count < 0 || count > (capacity - 8) / IntPtr.Size)
+                throw new InvalidOperationException("Owned job process snapshot exceeded its diagnostic bound.");
+            var ids = new uint[count];
+            for (var index = 0; index < count; index++)
+                ids[index] = checked((uint)Marshal.ReadIntPtr(data, 8 + index * IntPtr.Size).ToInt64());
+            return ids;
+        }
+        finally { Marshal.FreeHGlobal(data); }
+    }
+    public IReadOnlyList<string> ObserveProcesses(bool cleanup)
+    {
+        var observations = new List<string>();
+        foreach (var pid in ReadProcessIds())
+        {
+            if (observedProcesses.ContainsKey(pid)) continue;
+            var processHandle = OpenProcess(0x1000 | 0x00100000, false, pid); // limited query + synchronize
+            if (processHandle.IsInvalid) { processHandle.Dispose(); continue; } // May already have exited.
+            try
+            {
+                // A snapshot PID may have been recycled; verify the opened process still belongs to this job.
+                if (!IsProcessInJob(processHandle.DangerousGetHandle(), handle, out var owned))
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                if (!owned) continue;
+                var image = new StringBuilder(1024);
+                var size = image.Capacity;
+                var name = QueryFullProcessImageName(processHandle, 0, image, ref size) ? Path.GetFileName(image.ToString()) : "unknown";
+                observedProcesses.Add(pid, (processHandle, name));
+                observations.Add($"owned process observed; PID={pid}; name={name}; cleanup={cleanup}");
+                processHandle = null!; // Dictionary owns the retained handle, keeping this PID from being recycled.
+            }
+            finally { processHandle?.Dispose(); }
+        }
+        foreach (var (pid, process) in observedProcesses)
+        {
+            if (reportedExits.Contains(pid) || WaitForSingleObject(process.Handle, 0) != 0) continue;
+            if (!GetExitCodeProcess(process.Handle, out var exitCode)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            reportedExits.Add(pid);
+            observations.Add($"owned process exited; PID={pid}; name={process.Name}; exit=0x{exitCode:X8}; cleanup={cleanup}");
+        }
+        return observations;
+    }
     public bool HasProcesses
     {
         get
@@ -203,7 +255,12 @@ internal sealed class OwnedProcessJob : IDisposable
         }
         finally { Marshal.FreeHGlobal(table); }
     }
-    public void Dispose() => handle.Dispose();
+    public void Dispose()
+    {
+        foreach (var process in observedProcesses.Values) process.Handle.Dispose();
+        observedProcesses.Clear();
+        handle.Dispose();
+    }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct StartupInfo
     {
@@ -282,6 +339,14 @@ internal sealed class OwnedProcessJob : IDisposable
     private static extern bool IsProcessInJob(IntPtr process, SafeFileHandle job, out bool result);
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool QueryInformationJobObject(SafeFileHandle job, int infoClass, out Accounting info, int length, IntPtr returnedLength);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool QueryInformationJobObject(SafeFileHandle job, int infoClass, IntPtr info, int length, IntPtr returnedLength);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern SafeFileHandle OpenProcess(uint access, bool inheritHandle, uint processId);
+    [DllImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool QueryFullProcessImageName(SafeFileHandle process, uint flags, StringBuilder name, ref int size);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetExitCodeProcess(SafeFileHandle process, out uint exitCode);
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool TerminateJobObject(SafeFileHandle job, uint exitCode);
     [DllImport("iphlpapi.dll")]

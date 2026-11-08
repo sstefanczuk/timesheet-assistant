@@ -30,6 +30,7 @@ jobs:
           '{"sdk":{"version":"10.0.403","rollForward":"disable"}}' | Set-Content artifacts/cdp-probe/global.json
           $env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path $env:GITHUB_WORKSPACE 'artifacts/cdp-app/TimesheetAssistant.exe'
           $results = Join-Path $env:GITHUB_WORKSPACE 'artifacts/desktop-ui'
+          Remove-Item Env:GH_TOKEN
           Set-Location artifacts/cdp-probe
           dotnet test TimesheetAssistant.UiTests.csproj -c Release --logger 'trx;LogFileName=runtime-diagnostic.trx' --results-directory $results
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -40,4 +41,5 @@ jobs:
           name: desktop-ui-diagnostics
           path: artifacts/desktop-ui/
           retention-days: 3
+
 
