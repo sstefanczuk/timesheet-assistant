@@ -34,7 +34,7 @@ jobs:
           var read = type.GetMethod("ReadTokenInt", BindingFlags.NonPublic | BindingFlags.Static)!;
           Console.WriteLine($"Token elevation type: {read.Invoke(null, new object[] { current, 18 })} (2=linked, 1=restricted fallback)");
           var get = type.GetMethod("GetStandardLaunchToken", BindingFlags.NonPublic | BindingFlags.Static)!;
-          using var token = (SafeAccessTokenHandle?)get.Invoke(null, null);
+          using var token = (SafeAccessTokenHandle?)get.Invoke(null, new object[] { false });
           Console.WriteLine($"Standard launch token prepared: {token is not null}");
           var executable = Environment.ProcessPath!;
           try {
@@ -55,4 +55,5 @@ jobs:
           Set-Location artifacts/launch-probe
           dotnet run --project LaunchProbe.csproj -c Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 

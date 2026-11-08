@@ -31,13 +31,17 @@ internal sealed class OwnedProcessJob : IDisposable
             var startup = new StartupInfo { Size = Marshal.SizeOf<StartupInfo>() };
             const uint createSuspended = 0x00000004;
             const uint createUnicodeEnvironment = 0x00000400;
-            using var launchToken = GetStandardLaunchToken();
+            using var launchToken = GetStandardLaunchToken(out var restrictedToken);
             ProcessInformation info;
             var created = launchToken is null
                 ? CreateProcess(start.FileName, new StringBuilder($"\"{start.FileName}\""), IntPtr.Zero, IntPtr.Zero,
                     false, createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory, ref startup, out info)
-                : CreateProcessWithToken(launchToken, 0, start.FileName, new StringBuilder($"\"{start.FileName}\""),
-                    createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory, ref startup, out info);
+                : restrictedToken
+                    // An own restricted primary token does not require SeAssignPrimaryTokenPrivilege.
+                    ? CreateProcessAsUser(launchToken, start.FileName, new StringBuilder($"\"{start.FileName}\""), IntPtr.Zero, IntPtr.Zero,
+                        false, createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory, ref startup, out info)
+                    : CreateProcessWithToken(launchToken, 0, start.FileName, new StringBuilder($"\"{start.FileName}\""),
+                        createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory, ref startup, out info);
             if (!created)
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not create suspended desktop process.");
 
@@ -77,8 +81,9 @@ internal sealed class OwnedProcessJob : IDisposable
         finally { Marshal.FreeHGlobal(environmentBlock); }
     }
 
-    private static SafeAccessTokenHandle? GetStandardLaunchToken()
+    private static SafeAccessTokenHandle? GetStandardLaunchToken(out bool restrictedToken)
     {
+        restrictedToken = false;
         // Current WebView2 ignores environment overrides in elevated hosts. De-elevate only our child.
         const uint tokenAccess = 0x0001 | 0x0002 | 0x0008 | 0x0080; // assign, duplicate, query, adjust default
         using var currentProcess = Process.GetCurrentProcess();
@@ -99,21 +104,25 @@ internal sealed class OwnedProcessJob : IDisposable
                 // UAC-disabled hosts have no linked token. LUA_TOKEN strips admin groups/privileges.
                 if (!CreateRestrictedToken(current, 0x4 | 0x1, 0, IntPtr.Zero, 0, IntPtr.Zero, 0, IntPtr.Zero, out token))
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not create standard desktop launch token.");
+                restrictedToken = true;
             }
             try
             {
-                var mediumSid = new SecurityIdentifier("S-1-16-8192");
-                var bytes = new byte[mediumSid.BinaryLength];
-                mediumSid.GetBinaryForm(bytes, 0);
-                var sid = Marshal.AllocHGlobal(bytes.Length);
-                try
+                if (ReadIntegrity(token) != 0x2000)
                 {
-                    Marshal.Copy(bytes, 0, sid, bytes.Length);
-                    var label = new MandatoryLabel { Sid = sid, Attributes = 0x20 }; // SE_GROUP_INTEGRITY
-                    if (!SetTokenInformation(token, 25, ref label, Marshal.SizeOf<MandatoryLabel>() + bytes.Length))
-                        throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not set medium desktop integrity.");
+                    var mediumSid = new SecurityIdentifier("S-1-16-8192");
+                    var bytes = new byte[mediumSid.BinaryLength];
+                    mediumSid.GetBinaryForm(bytes, 0);
+                    var sid = Marshal.AllocHGlobal(bytes.Length);
+                    try
+                    {
+                        Marshal.Copy(bytes, 0, sid, bytes.Length);
+                        var label = new MandatoryLabel { Sid = sid, Attributes = 0x20 }; // SE_GROUP_INTEGRITY
+                        if (!SetTokenInformation(token, 25, ref label, Marshal.SizeOf<MandatoryLabel>() + bytes.Length))
+                            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not set medium desktop integrity.");
+                    }
+                    finally { Marshal.FreeHGlobal(sid); }
                 }
-                finally { Marshal.FreeHGlobal(sid); }
                 VerifyStandardToken(token);
                 return token;
             }
@@ -224,6 +233,10 @@ internal sealed class OwnedProcessJob : IDisposable
     [DllImport("advapi32.dll", EntryPoint = "CreateProcessWithTokenW", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CreateProcessWithToken(SafeAccessTokenHandle token, uint logonFlags, string application,
         StringBuilder commandLine, uint flags, IntPtr environment, string directory, ref StartupInfo startup, out ProcessInformation information);
+    [DllImport("advapi32.dll", EntryPoint = "CreateProcessAsUserW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CreateProcessAsUser(SafeAccessTokenHandle token, string application, StringBuilder commandLine,
+        IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint flags, IntPtr environment,
+        string directory, ref StartupInfo startup, out ProcessInformation information);
     [StructLayout(LayoutKind.Sequential)]
     private struct TcpRow { public uint State, LocalAddress, LocalPort, RemoteAddress, RemotePort, ProcessId; }
     [StructLayout(LayoutKind.Sequential)]
