@@ -1,28 +1,25 @@
-name: Windows preview
+name: WebView2 native diagnostics
 
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact approved diagnostic commit SHA
+        required: true
+        type: string
 
 permissions:
   contents: read
-
-concurrency:
-  group: windows-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
     shell: pwsh
 
 jobs:
-  build:
+  metadata:
+    if: startsWith(github.ref, 'refs/heads/ci/')
     runs-on: windows-2025
     timeout-minutes: 45
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
@@ -30,61 +27,92 @@ jobs:
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           global-json-file: global.json
-      - name: Install pinned MAUI workload
-        run: dotnet workload install maui-windows
-      - name: Restore
-        run: dotnet restore TimesheetAssistant.sln -p:Configuration=Release -p:RuntimeIdentifierOverride=win-x64
-      - name: Build
-        run: dotnet build TimesheetAssistant.sln -c Release -p:RuntimeIdentifierOverride=win-x64 --no-restore
-      - name: Run xUnit discovery
-        run: |
-          dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release --no-build --logger trx
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          'The starter has no functional tests. Empty discovery does not verify application behavior.' >> $env:GITHUB_STEP_SUMMARY
-      - name: Audit dependencies
-        run: dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json
-      - name: Choose preview version
-        id: version
-        run: '"version=0.1.0-preview.$env:GITHUB_RUN_NUMBER" >> $env:GITHUB_OUTPUT'
-      - name: Package
+      - name: Preflight passive diagnostic tools and provenance
         env:
-          PREVIEW_VERSION: ${{ steps.version.outputs.version }}
-        run: ./scripts/Package-Windows.ps1 -Version $env:PREVIEW_VERSION -Commit $env:GITHUB_SHA -BuildNumber ([int]$env:GITHUB_RUN_NUMBER)
-      - name: Upload release inputs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: windows-preview
-          path: artifacts/release-${{ steps.version.outputs.version }}/*
-          if-no-files-found: error
-          retention-days: 3
-          compression-level: 0
-
-  release:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: windows-2025
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: windows-preview
-          path: release
-      - name: Create prerelease from the exact built commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          PREVIEW_VERSION: ${{ needs.build.outputs.version }}
-          AUTO_PUBLISH: ${{ vars.AUTO_PUBLISH_PRERELEASES }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $tag = "v$env:PREVIEW_VERSION"
-          # Creating an existing ref fails deliberately; retries never overwrite releases.
-          gh api --method POST "repos/$env:GH_REPO/git/refs" -f "ref=refs/tags/$tag" -f "sha=$env:GITHUB_SHA"
-          if ($LASTEXITCODE -ne 0) { throw 'Tag creation failed; inspect existing tag/release before retrying.' }
-          $zip = "release/TimesheetAssistant-$env:PREVIEW_VERSION-win-x64.zip"
-          $releaseArgs = @('release', 'create', $tag, $zip, "$zip.sha256", '--verify-tag', '--prerelease', '--latest=false', '--title', "Timesheet Assistant $env:PREVIEW_VERSION", '--notes-file', 'release/release-notes.md')
-          if ($env:AUTO_PUBLISH -ne 'true') { $releaseArgs += '--draft' }
-          gh @releaseArgs
-          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed; keep the tag for diagnosis.' }
+          if ($env:EXPECTED_SHA -cnotmatch '^[0-9a-f]{40}$' -or $env:GITHUB_SHA -cne $env:EXPECTED_SHA) { throw 'Approved SHA mismatch.' }
+          $actual = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $env:EXPECTED_SHA) { throw 'Checkout SHA mismatch.' }
+          if (-not $env:ImageVersion) { throw 'Runner image version is missing.' }
+          New-Item -ItemType Directory -Force artifacts/native-export | Out-Null
+          $tools = @(foreach ($name in @('dotnet', 'pwsh')) {
+            $path = (Get-Command $name -CommandType Application).Source
+            $signature = Get-AuthenticodeSignature -LiteralPath $path
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') { throw "Invalid Microsoft signature: $name" }
+            @{ Name = $name; Version = (Get-Item -LiteralPath $path).VersionInfo.FileVersion; Signature = [string]$signature.Status }
+          })
+          $roots = @(${env:ProgramFiles(x86)}, $env:ProgramFiles, $env:LOCALAPPDATA) | Where-Object { $_ }
+          $runtimes = @(foreach ($root in $roots) {
+            Get-ChildItem -Path (Join-Path $root 'Microsoft/EdgeWebView/Application/*/msedgewebview2.exe') -File -ErrorAction SilentlyContinue
+          })
+          if ($runtimes.Count -eq 0) { throw 'WebView2 Evergreen Runtime is missing.' }
+          $runtimeVersions = @(foreach ($runtime in $runtimes) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $runtime.FullName
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') { throw 'Invalid WebView2 runtime signature.' }
+            @{ Version = $runtime.VersionInfo.FileVersion; Signature = [string]$signature.Status }
+          })
+          @{ Sha = $actual; ImageVersion = $env:ImageVersion; ImageOS = $env:ImageOS; Tools = $tools; WebView2 = $runtimeVersions; Mode = 'passive-no-debugger' } |
+            ConvertTo-Json -Depth 5 | Set-Content artifacts/native-export/preflight.json
+      - name: Install pinned MAUI workload
+        run: dotnet workload install maui-windows
+      - name: Build current Release
+        run: |
+          dotnet restore TimesheetAssistant.sln -p:Configuration=Release -p:RuntimeIdentifierOverride=win-x64
+          if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
+          dotnet build TimesheetAssistant.sln -c Release -p:RuntimeIdentifierOverride=win-x64 --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
+          ./scripts/diagnostics/Test-WebView2CrashMetadata.ps1
+      - name: Publish current package
+        run: ./scripts/Package-Windows.ps1 -Version "0.1.0-preview.$env:GITHUB_RUN_NUMBER" -Commit $env:GITHUB_SHA -BuildNumber ([int]$env:GITHUB_RUN_NUMBER)
+      - name: Run one passive baseline and collect allowed metadata
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # No token or secret is provided to the test process. Checkout credentials are not persisted.
+          Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+          $privateRoot = Join-Path $env:RUNNER_TEMP "webview2-native-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $resolved = [IO.Path]::GetFullPath($privateRoot)
+          $temporaryRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+          if (-not $resolved.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid private evidence root.' }
+          $env:TIMESHEET_ASSISTANT_NATIVE_PRIVATE_ROOT = $resolved
+          $env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path $env:GITHUB_WORKSPACE "artifacts/publish-0.1.0-preview.$env:GITHUB_RUN_NUMBER/TimesheetAssistant.exe"
+          $testExit = $null
+          $privateRemoved = $false
+          try {
+            dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --no-build --logger 'trx;LogFileName=desktop-ui.trx' --results-directory artifacts/desktop-ui
+            $testExit = $LASTEXITCODE
+            $sessions = @(Get-ChildItem artifacts/desktop-ui -Directory | Where-Object { $_.Name -match '^[0-9a-f]{32}$' })
+            if ($sessions.Count -ne 1) { throw 'Expected exactly one diagnostic session.' }
+            $session = $sessions[0].FullName
+            $manifestPath = Join-Path $session 'own-processes.json'
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+            if (-not $manifest.CleanupComplete -or @($manifest.Processes).Count -lt 1) { throw 'Owned process identity or cleanup evidence is missing.' }
+            ./scripts/diagnostics/Collect-WebView2CrashMetadata.ps1 -ManifestPath $manifestPath -OutputPath artifacts/native-export/crash-metadata.json
+            Copy-Item -LiteralPath $manifestPath -Destination artifacts/native-export/own-processes.json
+            Copy-Item -LiteralPath (Join-Path $session 'profile-report-status.json') -Destination artifacts/native-export/profile-report-status.json
+            Copy-Item -LiteralPath artifacts/desktop-ui/desktop-ui.trx -Destination artifacts/native-export/desktop-ui.trx
+          } finally {
+            if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
+            $privateRemoved = -not (Test-Path -LiteralPath $resolved)
+            @{ TestExitCode = $testExit; PrivateEvidenceRemoved = $privateRemoved; DesktopGateAccepted = $false } |
+              ConvertTo-Json | Set-Content artifacts/native-export/baseline-status.json
+            Remove-Item Env:TIMESHEET_ASSISTANT_NATIVE_PRIVATE_ROOT -ErrorAction SilentlyContinue
+          }
+          if (-not $privateRemoved) { throw 'Private native evidence cleanup failed.' }
+          "Passive diagnostic baseline collected. UI test exit: $testExit. This does not accept the F-01 desktop gate." >> $env:GITHUB_STEP_SUMMARY
+          if ($testExit -ne 0) { throw "Original desktop test failed with exit code $testExit; inspect the diagnostic metadata." }
+      - name: Upload explicit passive exports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: webview2-native-metadata
+          path: |
+            artifacts/native-export/preflight.json
+            artifacts/native-export/own-processes.json
+            artifacts/native-export/crash-metadata.json
+            artifacts/native-export/profile-report-status.json
+            artifacts/native-export/baseline-status.json
+            artifacts/native-export/desktop-ui.trx
+          if-no-files-found: warn
+          retention-days: 3

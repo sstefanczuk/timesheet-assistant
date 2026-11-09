@@ -2,7 +2,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Win32.SafeHandles;
 
 namespace TimesheetAssistant.UiTests;
@@ -11,6 +13,29 @@ namespace TimesheetAssistant.UiTests;
 internal sealed class OwnedProcessJob : IDisposable
 {
     private readonly SafeFileHandle handle = CreateJobObject(IntPtr.Zero, null);
+    private readonly Dictionary<uint, (SafeFileHandle Handle, string Name)> observedProcesses = new();
+    private readonly HashSet<uint> reportedExits = new();
+    private readonly Dictionary<uint, ProcessIdentity> identities = new();
+    private sealed class ProcessIdentity
+    {
+        public uint Pid { get; init; }
+        public string Basename { get; init; } = "unknown";
+        public string CreationFileTime { get; init; } = "";
+        public DateTime CreationUtc { get; init; }
+        public DateTime ObservedUtc { get; init; }
+        public string? ExitFileTime { get; set; }
+        public DateTime? ExitUtc { get; set; }
+        public string? ExitCode { get; set; }
+        public bool Cleanup { get; set; }
+    }
+    public void WriteManifest(string path, string sessionId, DateTime sessionStartedUtc, bool cleanupComplete)
+    {
+        var content = JsonSerializer.Serialize(new { SessionId = sessionId, SessionStartedUtc = sessionStartedUtc,
+            ObservedUtc = DateTime.UtcNow, CleanupComplete = cleanupComplete, Processes = identities.Values },
+            new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(path + ".tmp", content);
+        File.Move(path + ".tmp", path, overwrite: true);
+    }
     public OwnedProcessJob()
     {
         if (handle.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -30,9 +55,18 @@ internal sealed class OwnedProcessJob : IDisposable
             var startup = new StartupInfo { Size = Marshal.SizeOf<StartupInfo>() };
             const uint createSuspended = 0x00000004;
             const uint createUnicodeEnvironment = 0x00000400;
-            if (!CreateProcess(start.FileName, new StringBuilder($"\"{start.FileName}\""), IntPtr.Zero, IntPtr.Zero,
-                false, createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory,
-                ref startup, out var info))
+            using var launchToken = GetStandardLaunchToken(out var restrictedToken);
+            ProcessInformation info;
+            var created = launchToken is null
+                ? CreateProcess(start.FileName, new StringBuilder($"\"{start.FileName}\""), IntPtr.Zero, IntPtr.Zero,
+                    false, createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory, ref startup, out info)
+                : restrictedToken
+                    // An own restricted primary token does not require SeAssignPrimaryTokenPrivilege.
+                    ? CreateProcessAsUser(launchToken, start.FileName, new StringBuilder($"\"{start.FileName}\""), IntPtr.Zero, IntPtr.Zero,
+                        false, createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory, ref startup, out info)
+                    : CreateProcessWithToken(launchToken, 0, start.FileName, new StringBuilder($"\"{start.FileName}\""),
+                        createSuspended | createUnicodeEnvironment, environmentBlock, start.WorkingDirectory, ref startup, out info);
+            if (!created)
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not create suspended desktop process.");
 
             using var processHandle = new SafeFileHandle(info.Process, ownsHandle: true);
@@ -43,6 +77,12 @@ internal sealed class OwnedProcessJob : IDisposable
                 // The primary thread cannot create WebView2 children before job membership is established.
                 if (!AssignProcessToJobObject(handle, processHandle.DangerousGetHandle()))
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not isolate suspended desktop process in a Windows job.");
+                if (launchToken is not null)
+                {
+                    if (!OpenProcessToken(processHandle.DangerousGetHandle(), 0x0008, out var childToken))
+                        throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not verify desktop child token.");
+                    using (childToken) VerifyStandardToken(childToken);
+                }
                 process = Process.GetProcessById(checked((int)info.ProcessId));
                 if (ResumeThread(threadHandle) == uint.MaxValue)
                     throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not resume isolated desktop process.");
@@ -64,12 +104,159 @@ internal sealed class OwnedProcessJob : IDisposable
         }
         finally { Marshal.FreeHGlobal(environmentBlock); }
     }
+
+    private static SafeAccessTokenHandle? GetStandardLaunchToken(out bool restrictedToken)
+    {
+        restrictedToken = false;
+        // Current WebView2 ignores environment overrides in elevated hosts. De-elevate only our child.
+        const uint tokenAccess = 0x0001 | 0x0002 | 0x0008 | 0x0080; // assign, duplicate, query, adjust default
+        using var currentProcess = Process.GetCurrentProcess();
+        if (!OpenProcessToken(currentProcess.Handle, tokenAccess, out var current))
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not inspect desktop launch token.");
+        using (current)
+        {
+            if (ReadTokenInt(current, 20) == 0 && ReadIntegrity(current) < 0x3000) return null;
+            SafeAccessTokenHandle token;
+            if (ReadTokenInt(current, 18) == 2) // TokenElevationTypeFull has a linked filtered token.
+            {
+                var linked = ReadTokenInformation(current, 19);
+                try { token = new SafeAccessTokenHandle(Marshal.ReadIntPtr(linked)); }
+                finally { Marshal.FreeHGlobal(linked); }
+            }
+            else
+            {
+                // Keep the standard LUA user baseline without adding another sandbox policy.
+                if (!CreateRestrictedToken(current, 0x4, 0, IntPtr.Zero, 0, IntPtr.Zero, 0, IntPtr.Zero, out token))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not create standard desktop launch token.");
+                restrictedToken = true;
+            }
+            try
+            {
+                if (ReadIntegrity(token) != 0x2000)
+                {
+                    var mediumSid = new SecurityIdentifier("S-1-16-8192");
+                    var bytes = new byte[mediumSid.BinaryLength];
+                    mediumSid.GetBinaryForm(bytes, 0);
+                    var sid = Marshal.AllocHGlobal(bytes.Length);
+                    try
+                    {
+                        Marshal.Copy(bytes, 0, sid, bytes.Length);
+                        var label = new MandatoryLabel { Sid = sid, Attributes = 0x20 }; // SE_GROUP_INTEGRITY
+                        if (!SetTokenInformation(token, 25, ref label, Marshal.SizeOf<MandatoryLabel>() + bytes.Length))
+                            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not set medium desktop integrity.");
+                    }
+                    finally { Marshal.FreeHGlobal(sid); }
+                }
+                VerifyStandardToken(token);
+                return token;
+            }
+            catch { token.Dispose(); throw; }
+        }
+    }
+
+    private static void VerifyStandardToken(SafeAccessTokenHandle token)
+    {
+        if (ReadTokenInt(token, 20) != 0 || ReadIntegrity(token) != 0x2000)
+            throw new InvalidOperationException("Desktop test child must have a non-elevated medium-integrity token so WebView2 honors its private profile and CDP arguments.");
+    }
+
+    private static int ReadIntegrity(SafeAccessTokenHandle token)
+    {
+        var data = ReadTokenInformation(token, 25);
+        try
+        {
+            var sid = new SecurityIdentifier(Marshal.ReadIntPtr(data));
+            return int.Parse(sid.Value.Split('-')[^1], System.Globalization.CultureInfo.InvariantCulture);
+        }
+        finally { Marshal.FreeHGlobal(data); }
+    }
+
+    private static int ReadTokenInt(SafeAccessTokenHandle token, int informationClass)
+    {
+        var data = ReadTokenInformation(token, informationClass);
+        try { return Marshal.ReadInt32(data); }
+        finally { Marshal.FreeHGlobal(data); }
+    }
+
+    private static IntPtr ReadTokenInformation(SafeAccessTokenHandle token, int informationClass)
+    {
+        GetTokenInformation(token, informationClass, IntPtr.Zero, 0, out var size);
+        if (size == 0) throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not size desktop token information.");
+        var data = Marshal.AllocHGlobal(size);
+        if (GetTokenInformation(token, informationClass, data, size, out _)) return data;
+        var error = Marshal.GetLastWin32Error();
+        Marshal.FreeHGlobal(data);
+        throw new Win32Exception(error, "Could not read desktop token information.");
+    }
     public bool Contains(uint pid)
     {
         using var process = Process.GetProcessById(checked((int)pid));
         if (!IsProcessInJob(process.Handle, handle, out var result)) throw new Win32Exception(Marshal.GetLastWin32Error());
         return result;
     }
+    public IReadOnlyList<uint> ReadProcessIds()
+    {
+        const int capacity = 64 * 1024;
+        var data = Marshal.AllocHGlobal(capacity);
+        try
+        {
+            if (!QueryInformationJobObject(handle, 3, data, capacity, IntPtr.Zero))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not read owned job process IDs.");
+            var count = Marshal.ReadInt32(data, 4);
+            if (count < 0 || count > (capacity - 8) / IntPtr.Size)
+                throw new InvalidOperationException("Owned job process snapshot exceeded its diagnostic bound.");
+            var ids = new uint[count];
+            for (var index = 0; index < count; index++)
+                ids[index] = checked((uint)Marshal.ReadIntPtr(data, 8 + index * IntPtr.Size).ToInt64());
+            return ids;
+        }
+        finally { Marshal.FreeHGlobal(data); }
+    }
+    public IReadOnlyList<string> ObserveProcesses(bool cleanup)
+    {
+        var observations = new List<string>();
+        foreach (var pid in ReadProcessIds())
+        {
+            if (observedProcesses.ContainsKey(pid)) continue;
+            var processHandle = OpenProcess(0x1000 | 0x00100000, false, pid); // limited query + synchronize
+            if (processHandle.IsInvalid) { processHandle.Dispose(); continue; } // May already have exited.
+            try
+            {
+                // A snapshot PID may have been recycled; verify the opened process still belongs to this job.
+                if (!IsProcessInJob(processHandle.DangerousGetHandle(), handle, out var owned))
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                if (!owned) continue;
+                var image = new StringBuilder(1024);
+                var size = image.Capacity;
+                var name = QueryFullProcessImageName(processHandle, 0, image, ref size) ? Path.GetFileName(image.ToString()) : "unknown";
+                if (!GetProcessTimes(processHandle, out var created, out _, out _, out _))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not read owned process creation time.");
+                identities.Add(pid, new ProcessIdentity { Pid = pid, Basename = name,
+                    CreationFileTime = created.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    CreationUtc = DateTime.FromFileTimeUtc(created), ObservedUtc = DateTime.UtcNow });
+                observedProcesses.Add(pid, (processHandle, name));
+                observations.Add($"owned process observed; PID={pid}; name={name}; cleanup={cleanup}");
+                processHandle = null!; // Dictionary owns the retained handle, keeping this PID from being recycled.
+            }
+            finally { processHandle?.Dispose(); }
+        }
+        foreach (var (pid, process) in observedProcesses)
+        {
+            if (reportedExits.Contains(pid) || WaitForSingleObject(process.Handle, 0) != 0) continue;
+            if (!GetExitCodeProcess(process.Handle, out var exitCode)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            if (!GetProcessTimes(process.Handle, out _, out var exited, out _, out _))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not read owned process exit time.");
+            var identity = identities[pid];
+            identity.ExitFileTime = exited.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            identity.ExitUtc = DateTime.FromFileTimeUtc(exited);
+            identity.ExitCode = $"0x{exitCode:X8}";
+            identity.Cleanup = cleanup;
+            reportedExits.Add(pid);
+            observations.Add($"owned process exited; PID={pid}; name={process.Name}; exit=0x{exitCode:X8}; cleanup={cleanup}");
+        }
+        return observations;
+    }
+    public bool HasPendingProcessExits => reportedExits.Count < observedProcesses.Count;
     public bool HasProcesses
     {
         get
@@ -103,7 +290,12 @@ internal sealed class OwnedProcessJob : IDisposable
         }
         finally { Marshal.FreeHGlobal(table); }
     }
-    public void Dispose() => handle.Dispose();
+    public void Dispose()
+    {
+        foreach (var process in observedProcesses.Values) process.Handle.Dispose();
+        observedProcesses.Clear();
+        handle.Dispose();
+    }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct StartupInfo
     {
@@ -119,6 +311,24 @@ internal sealed class OwnedProcessJob : IDisposable
         public IntPtr Process, Thread;
         public uint ProcessId, ThreadId;
     }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MandatoryLabel { public IntPtr Sid; public uint Attributes; }
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool OpenProcessToken(IntPtr process, uint access, out SafeAccessTokenHandle token);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool GetTokenInformation(SafeAccessTokenHandle token, int informationClass, IntPtr data, int length, out int needed);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool SetTokenInformation(SafeAccessTokenHandle token, int informationClass, ref MandatoryLabel label, int length);
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool CreateRestrictedToken(SafeAccessTokenHandle token, uint flags, uint disabledCount, IntPtr disabled,
+        uint deletedCount, IntPtr deleted, uint restrictedCount, IntPtr restricted, out SafeAccessTokenHandle result);
+    [DllImport("advapi32.dll", EntryPoint = "CreateProcessWithTokenW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CreateProcessWithToken(SafeAccessTokenHandle token, uint logonFlags, string application,
+        StringBuilder commandLine, uint flags, IntPtr environment, string directory, ref StartupInfo startup, out ProcessInformation information);
+    [DllImport("advapi32.dll", EntryPoint = "CreateProcessAsUserW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool CreateProcessAsUser(SafeAccessTokenHandle token, string application, StringBuilder commandLine,
+        IntPtr processAttributes, IntPtr threadAttributes, bool inheritHandles, uint flags, IntPtr environment,
+        string directory, ref StartupInfo startup, out ProcessInformation information);
     [StructLayout(LayoutKind.Sequential)]
     private struct TcpRow { public uint State, LocalAddress, LocalPort, RemoteAddress, RemotePort, ProcessId; }
     [StructLayout(LayoutKind.Sequential)]
@@ -164,6 +374,16 @@ internal sealed class OwnedProcessJob : IDisposable
     private static extern bool IsProcessInJob(IntPtr process, SafeFileHandle job, out bool result);
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool QueryInformationJobObject(SafeFileHandle job, int infoClass, out Accounting info, int length, IntPtr returnedLength);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool QueryInformationJobObject(SafeFileHandle job, int infoClass, IntPtr info, int length, IntPtr returnedLength);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern SafeFileHandle OpenProcess(uint access, bool inheritHandle, uint processId);
+    [DllImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool QueryFullProcessImageName(SafeFileHandle process, uint flags, StringBuilder name, ref int size);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetProcessTimes(SafeFileHandle process, out long creation, out long exit, out long kernel, out long user);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetExitCodeProcess(SafeFileHandle process, out uint exitCode);
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool TerminateJobObject(SafeFileHandle job, uint exitCode);
     [DllImport("iphlpapi.dll")]
