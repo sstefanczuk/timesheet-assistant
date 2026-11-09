@@ -152,3 +152,29 @@ test or clean-machine compatibility is claimed.
 - Remaining limits: unsigned starter, WebView2 required, no persistence, empty
   xUnit suite, no clean-device verification, and artifact-action deprecation
   annotations noted above. These do not block the approved technical prerelease.
+
+### Native diagnosis handoff — 2026-11-09
+
+The [supporting native diagnosis report](../changes/diagnose-webview2-native-crash/diagnosis.md)
+records all five diagnostic run IDs/exact SHAs and stable evidence before the
+three-day artifacts expire. Passive baseline
+[42572422837](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42572422837)
+reproduced natural own-WebView2 `0x80000003` exits without a debugger, with no
+matching Windows events or own-profile Crashpad reports. Final active run
+[42578053182](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42578053182)
+attempted two own PIDs and ended offline analysis with `budget-exhausted` and
+`Analyses=[]`. Helpers and private files were cleaned up; raw dumps/debugger
+output were not exported. The exact exhausted budget was not recorded.
+
+The result is **inconclusive**: no fault module/offset, stack or root cause was
+established, and a first-chance debugger breakpoint remains possible. The report
+recommends a separately agreed change to record the exhausted budget and bounded
+counters before deciding whether another run is warranted. It authorizes no
+new experiment, increased limits or release. The prior correction/run approvals
+are consumed.
+
+F-01 remains `implementing`, with Progress 3.1–3.3 unchecked and both desktop CI
+acceptance proofs still pending. The successful diagnostic collection/cleanup
+does not accept the Windows preview gate. No persistence or clean-device proof
+was added. Supporting diagnostic work is recorded in commits `29a3054` and
+`49d90c5`; earlier F-01/deployment history remains unchanged.

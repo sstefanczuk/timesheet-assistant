@@ -174,15 +174,15 @@ Brak migracji danych. Zmiany diagnostyczne są opt-in i możliwe do usunięcia b
 
 #### Automated
 
-- [x] 2.1 Kontrolowane przypadki potwierdzają limity PID/czasu/rozmiaru, odmowę attach przy złej tożsamości i brak niedozwolonych pól w raporcie; actionlint przechodzi dla workflow.
-- [x] 2.2 Etap analizuje własny dump lub wykonuje najwyżej jeden uzgodniony run aktywny i zapisuje moduł/stos albo konkretny powód braku dowodu; raw dane nie trafiają do artefaktów, cleanup helperów i plików jest potwierdzony.
+- [x] 2.1 Kontrolowane przypadki potwierdzają limity PID/czasu/rozmiaru, odmowę attach przy złej tożsamości i brak niedozwolonych pól w raporcie; actionlint przechodzi dla workflow. — 49d90c5
+- [x] 2.2 Etap analizuje własny dump lub wykonuje najwyżej jeden uzgodniony run aktywny i zapisuje moduł/stos albo konkretny powód braku dowodu; raw dane nie trafiają do artefaktów, cleanup helperów i plików jest potwierdzony. — 49d90c5
 
 ### Phase 3: Wniosek i dalszy krok dla F-01
 
 #### Automated
 
-- [ ] 3.1 Raport wskazuje wszystkie wykonane runy i SHA, klasyfikuje wynik oraz uzasadnia dalszy krok; dokumentacja F-01 zachowuje status i niezaznaczone kryteria fazy 3.
+- [x] 3.1 Raport wskazuje wszystkie wykonane runy i SHA, klasyfikuje wynik oraz uzasadnia dalszy krok; dokumentacja F-01 zachowuje status i niezaznaczone kryteria fazy 3.
 
 #### Manual
 
-- [ ] 3.2 Autor potwierdza, że raport odróżnia dowody od hipotez i wybiera dalszy krok; żadna naprawa ani nowy eksperyment nie jest uruchamiany na podstawie samego raportu.
+- [x] 3.2 Autor potwierdza, że raport odróżnia dowody od hipotez i wybiera dalszy krok; żadna naprawa ani nowy eksperyment nie jest uruchamiany na podstawie samego raportu.
