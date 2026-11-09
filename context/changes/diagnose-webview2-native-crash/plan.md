@@ -166,9 +166,9 @@ Brak migracji danych. Zmiany diagnostyczne są opt-in i możliwe do usunięcia b
 
 #### Automated
 
-- [ ] 1.1 Release build i lokalny desktop UI przechodzą; manifest odróżnia własne procesy i naturalne wyjścia od cleanupu.
-- [ ] 1.2 Kontrolowane dane sprawdzają odrzucenie obcego PID, ponownie użytego PID, brakujących pól i zdarzenia spoza sesji oraz poprawną korelację; parser nie eksportuje pełnych zdarzeń.
-- [ ] 1.3 Jeden baseline windows-2025 zapisuje SHA, wersje, manifest oraz dopasowane metadane lub jawny brak; upload zawiera wyłącznie dozwolone pliki, a cleanup kończy własne procesy i usuwa profil.
+- [x] 1.1 Release build i lokalny desktop UI przechodzą; manifest odróżnia własne procesy i naturalne wyjścia od cleanupu.
+- [x] 1.2 Kontrolowane dane sprawdzają odrzucenie obcego PID, ponownie użytego PID, brakujących pól i zdarzenia spoza sesji oraz poprawną korelację; parser nie eksportuje pełnych zdarzeń.
+- [x] 1.3 Jeden baseline windows-2025 zapisuje SHA, wersje, manifest oraz dopasowane metadane lub jawny brak; upload zawiera wyłącznie dozwolone pliki, a cleanup kończy własne procesy i usuwa profil.
 
 ### Phase 2: Ograniczona analiza natywna
 
