@@ -1,7 +1,7 @@
 ---
 change_id: diagnose-webview2-native-crash
 title: Diagnoza natywnej awarii WebView2 na windows-2025
-status: implementing
+status: implemented
 created: 2026-11-08
 updated: 2026-11-09
 archived_at: null

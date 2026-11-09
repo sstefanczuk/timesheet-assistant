@@ -181,8 +181,8 @@ Brak migracji danych. Zmiany diagnostyczne są opt-in i możliwe do usunięcia b
 
 #### Automated
 
-- [x] 3.1 Raport wskazuje wszystkie wykonane runy i SHA, klasyfikuje wynik oraz uzasadnia dalszy krok; dokumentacja F-01 zachowuje status i niezaznaczone kryteria fazy 3.
+- [x] 3.1 Raport wskazuje wszystkie wykonane runy i SHA, klasyfikuje wynik oraz uzasadnia dalszy krok; dokumentacja F-01 zachowuje status i niezaznaczone kryteria fazy 3. — c072ecf
 
 #### Manual
 
-- [x] 3.2 Autor potwierdza, że raport odróżnia dowody od hipotez i wybiera dalszy krok; żadna naprawa ani nowy eksperyment nie jest uruchamiany na podstawie samego raportu.
+- [x] 3.2 Autor potwierdza, że raport odróżnia dowody od hipotez i wybiera dalszy krok; żadna naprawa ani nowy eksperyment nie jest uruchamiany na podstawie samego raportu. — c072ecf
