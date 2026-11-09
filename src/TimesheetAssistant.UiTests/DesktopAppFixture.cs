@@ -70,6 +70,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
     }
     private Process? application;
     private OwnedProcessJob? job;
+    private NativeCrashCapture? nativeCapture;
     private IPlaywright? playwright;
     private IBrowser? browser;
     private readonly string sessionDirectory = Path.Combine(Path.GetTempPath(), "TimesheetAssistant.UiTests", Guid.NewGuid().ToString("N"));
@@ -115,6 +116,18 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             RecordStage($"launch; executable={executable}; endpoint={endpoint}");
             Directory.CreateDirectory(ProfileDirectory);
             job = new OwnedProcessJob();
+            var procdump = Environment.GetEnvironmentVariable("TIMESHEET_ASSISTANT_NATIVE_PROCDUMP");
+            if (!string.IsNullOrWhiteSpace(procdump) && !string.IsNullOrWhiteSpace(nativePrivateRoot))
+            {
+                var privatePath = Path.GetFullPath(nativePrivateRoot);
+                var artifactRoot = Path.GetFullPath(Path.Combine(FindRepositoryRoot(), "artifacts"));
+                if (privatePath.Equals(artifactRoot, StringComparison.OrdinalIgnoreCase)
+                    || privatePath.StartsWith(artifactRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("Native capture must remain outside artifact upload roots.");
+                nativeCapture = new NativeCrashCapture(procdump,
+                    Path.Combine(nativePrivateRoot, Path.GetFileName(artifactDirectory), "active"),
+                    DateTime.UtcNow + timeouts.Startup - startupElapsed.Elapsed);
+            }
             var start = new ProcessStartInfo(executable)
             {
                 UseShellExecute = false,
@@ -226,6 +239,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
         try
         {
             foreach (var observation in job.ObserveProcesses(cleanup)) RecordStage(observation);
+            if (!cleanup) nativeCapture?.Observe(job);
             if (!string.IsNullOrWhiteSpace(nativePrivateRoot))
                 job.WriteManifest(Path.Combine(artifactDirectory, "own-processes.json"), Path.GetFileName(artifactDirectory), sessionStartedUtc, false);
         }
@@ -285,6 +299,9 @@ public sealed class DesktopAppFixture : IAsyncLifetime
         var processesAndProfileRemoved = false;
         try
         {
+            try { nativeCapture?.Dispose(); }
+            catch { RecordStage("Native helper cleanup unavailable; diagnostic result is inconclusive."); }
+            nativeCapture = null;
             // Terminate only this Windows job, including descendants after the app exits.
             if (job is not null)
             {
@@ -340,6 +357,9 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 || root.StartsWith(exportRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Native private evidence must be outside the artifact root.");
             var target = Path.Combine(root, Path.GetFileName(artifactDirectory), "profile-reports");
+            var activeDirectory = Path.Combine(root, Path.GetFileName(artifactDirectory), "active");
+            if (Directory.Exists(activeDirectory))
+                bytes = Directory.EnumerateFiles(activeDirectory, "*.dmp").Sum(path => new FileInfo(path).Length);
             // Traverse only this unique profile, excluding links and ordinary profile storage.
             var pending = new Stack<string>();
             if (Directory.Exists(ProfileDirectory)) pending.Push(ProfileDirectory);

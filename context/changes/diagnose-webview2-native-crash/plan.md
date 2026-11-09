@@ -166,16 +166,16 @@ Brak migracji danych. Zmiany diagnostyczne są opt-in i możliwe do usunięcia b
 
 #### Automated
 
-- [x] 1.1 Release build i lokalny desktop UI przechodzą; manifest odróżnia własne procesy i naturalne wyjścia od cleanupu.
-- [x] 1.2 Kontrolowane dane sprawdzają odrzucenie obcego PID, ponownie użytego PID, brakujących pól i zdarzenia spoza sesji oraz poprawną korelację; parser nie eksportuje pełnych zdarzeń.
-- [x] 1.3 Jeden baseline windows-2025 zapisuje SHA, wersje, manifest oraz dopasowane metadane lub jawny brak; upload zawiera wyłącznie dozwolone pliki, a cleanup kończy własne procesy i usuwa profil.
+- [x] 1.1 Release build i lokalny desktop UI przechodzą; manifest odróżnia własne procesy i naturalne wyjścia od cleanupu. — 29a3054
+- [x] 1.2 Kontrolowane dane sprawdzają odrzucenie obcego PID, ponownie użytego PID, brakujących pól i zdarzenia spoza sesji oraz poprawną korelację; parser nie eksportuje pełnych zdarzeń. — 29a3054
+- [x] 1.3 Jeden baseline windows-2025 zapisuje SHA, wersje, manifest oraz dopasowane metadane lub jawny brak; upload zawiera wyłącznie dozwolone pliki, a cleanup kończy własne procesy i usuwa profil. — 29a3054
 
 ### Phase 2: Ograniczona analiza natywna
 
 #### Automated
 
-- [ ] 2.1 Kontrolowane przypadki potwierdzają limity PID/czasu/rozmiaru, odmowę attach przy złej tożsamości i brak niedozwolonych pól w raporcie; actionlint przechodzi dla workflow.
-- [ ] 2.2 Etap analizuje własny dump lub wykonuje najwyżej jeden uzgodniony run aktywny i zapisuje moduł/stos albo konkretny powód braku dowodu; raw dane nie trafiają do artefaktów, cleanup helperów i plików jest potwierdzony.
+- [x] 2.1 Kontrolowane przypadki potwierdzają limity PID/czasu/rozmiaru, odmowę attach przy złej tożsamości i brak niedozwolonych pól w raporcie; actionlint przechodzi dla workflow.
+- [x] 2.2 Etap analizuje własny dump lub wykonuje najwyżej jeden uzgodniony run aktywny i zapisuje moduł/stos albo konkretny powód braku dowodu; raw dane nie trafiają do artefaktów, cleanup helperów i plików jest potwierdzony.
 
 ### Phase 3: Wniosek i dalszy krok dla F-01
 
