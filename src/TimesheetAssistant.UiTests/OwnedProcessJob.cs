@@ -257,6 +257,22 @@ internal sealed class OwnedProcessJob : IDisposable
         return observations;
     }
     public bool HasPendingProcessExits => reportedExits.Count < observedProcesses.Count;
+    public bool WithVerifiedLiveProcess(uint pid, string creationFileTime, Action action)
+    {
+        if (!observedProcesses.TryGetValue(pid, out var process)
+            || !identities.TryGetValue(pid, out var identity)
+            || identity.Basename != "msedgewebview2.exe" || identity.CreationFileTime != creationFileTime
+            || WaitForSingleObject(process.Handle, 0) != 258) return false;
+        if (!IsProcessInJob(process.Handle.DangerousGetHandle(), handle, out var owned) || !owned
+            || !GetProcessTimes(process.Handle, out var created, out _, out _, out _)
+            || created.ToString(System.Globalization.CultureInfo.InvariantCulture) != creationFileTime) return false;
+        // Retaining the original handle prevents PID reuse between this check and PID-based attachment.
+        action();
+        return true;
+    }
+    public IEnumerable<(uint Pid, string CreationFileTime)> LiveWebViewInstances => identities.Values
+        .Where(value => value.Basename == "msedgewebview2.exe" && value.ExitFileTime is null)
+        .OrderBy(value => value.CreationUtc).Select(value => (value.Pid, value.CreationFileTime));
     public bool HasProcesses
     {
         get
