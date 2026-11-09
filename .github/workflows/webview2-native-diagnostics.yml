@@ -7,6 +7,15 @@ on:
         description: Exact approved diagnostic commit SHA
         required: true
         type: string
+      diagnostic_mode:
+        description: Separately approved mode; active attaches to at most two owned instances
+        required: true
+        default: metadata
+        type: choice
+        options:
+          - metadata
+          - offline
+          - active
 
 permissions:
   contents: read
@@ -30,6 +39,7 @@ jobs:
       - name: Preflight passive diagnostic tools and provenance
         env:
           EXPECTED_SHA: ${{ inputs.expected_sha }}
+          DIAGNOSTIC_MODE: ${{ inputs.diagnostic_mode }}
         run: |
           $ErrorActionPreference = 'Stop'
           if ($env:EXPECTED_SHA -cnotmatch '^[0-9a-f]{40}$' -or $env:GITHUB_SHA -cne $env:EXPECTED_SHA) { throw 'Approved SHA mismatch.' }
@@ -53,8 +63,13 @@ jobs:
             if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft Corporation') { throw 'Invalid WebView2 runtime signature.' }
             @{ Version = $runtime.VersionInfo.FileVersion; Signature = [string]$signature.Status }
           })
-          @{ Sha = $actual; ImageVersion = $env:ImageVersion; ImageOS = $env:ImageOS; Tools = $tools; WebView2 = $runtimeVersions; Mode = 'passive-no-debugger' } |
+          @{ Sha = $actual; ImageVersion = $env:ImageVersion; ImageOS = $env:ImageOS; Tools = $tools; WebView2 = $runtimeVersions; Mode = $env:DIAGNOSTIC_MODE } |
             ConvertTo-Json -Depth 5 | Set-Content artifacts/native-export/preflight.json
+      - name: Preflight existing native tools without installing debuggers
+        if: inputs.diagnostic_mode != 'metadata'
+        run: |
+          $privateRoot = Join-Path $env:RUNNER_TEMP "webview2-native-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          ./scripts/diagnostics/Analyze-WebView2Crash.ps1 -Preflight -PrivateRoot $privateRoot -OutputPath artifacts/native-export/native-tool-preflight.json
       - name: Install pinned MAUI workload
         run: dotnet workload install maui-windows
       - name: Build current Release
@@ -64,9 +79,12 @@ jobs:
           dotnet build TimesheetAssistant.sln -c Release -p:RuntimeIdentifierOverride=win-x64 --no-restore
           if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
           ./scripts/diagnostics/Test-WebView2CrashMetadata.ps1
+          ./scripts/diagnostics/Test-WebView2CrashAnalysis.ps1
       - name: Publish current package
         run: ./scripts/Package-Windows.ps1 -Version "0.1.0-preview.$env:GITHUB_RUN_NUMBER" -Commit $env:GITHUB_SHA -BuildNumber ([int]$env:GITHUB_RUN_NUMBER)
-      - name: Run one passive baseline and collect allowed metadata
+      - name: Run one approved diagnostic session and collect allowed metadata
+        env:
+          DIAGNOSTIC_MODE: ${{ inputs.diagnostic_mode }}
         run: |
           $ErrorActionPreference = 'Stop'
           # No token or secret is provided to the test process. Checkout credentials are not persisted.
@@ -76,6 +94,10 @@ jobs:
           $temporaryRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
           if (-not $resolved.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid private evidence root.' }
           $env:TIMESHEET_ASSISTANT_NATIVE_PRIVATE_ROOT = $resolved
+          if ($env:DIAGNOSTIC_MODE -eq 'active') {
+            $tools = Get-Content -LiteralPath (Join-Path $resolved 'verified-tools.json') -Raw | ConvertFrom-Json
+            $env:TIMESHEET_ASSISTANT_NATIVE_PROCDUMP = $tools.ProcDump
+          }
           $env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path $env:GITHUB_WORKSPACE "artifacts/publish-0.1.0-preview.$env:GITHUB_RUN_NUMBER/TimesheetAssistant.exe"
           $testExit = $null
           $privateRemoved = $false
@@ -92,16 +114,29 @@ jobs:
             Copy-Item -LiteralPath $manifestPath -Destination artifacts/native-export/own-processes.json
             Copy-Item -LiteralPath (Join-Path $session 'profile-report-status.json') -Destination artifacts/native-export/profile-report-status.json
             Copy-Item -LiteralPath artifacts/desktop-ui/desktop-ui.trx -Destination artifacts/native-export/desktop-ui.trx
+            if ($env:DIAGNOSTIC_MODE -ne 'metadata') {
+              ./scripts/diagnostics/Analyze-WebView2Crash.ps1 -PrivateRoot $resolved -ManifestPath $manifestPath -OutputPath artifacts/native-export/native-analysis.json
+            }
           } finally {
             if (Test-Path -LiteralPath $resolved) { Remove-Item -LiteralPath $resolved -Recurse -Force }
             $privateRemoved = -not (Test-Path -LiteralPath $resolved)
             @{ TestExitCode = $testExit; PrivateEvidenceRemoved = $privateRemoved; DesktopGateAccepted = $false } |
               ConvertTo-Json | Set-Content artifacts/native-export/baseline-status.json
             Remove-Item Env:TIMESHEET_ASSISTANT_NATIVE_PRIVATE_ROOT -ErrorAction SilentlyContinue
+            Remove-Item Env:TIMESHEET_ASSISTANT_NATIVE_PROCDUMP -ErrorAction SilentlyContinue
           }
           if (-not $privateRemoved) { throw 'Private native evidence cleanup failed.' }
           "Passive diagnostic baseline collected. UI test exit: $testExit. This does not accept the F-01 desktop gate." >> $env:GITHUB_STEP_SUMMARY
           if ($testExit -ne 0) { throw "Original desktop test failed with exit code $testExit; inspect the diagnostic metadata." }
+      - name: Confirm private cleanup even after preparation failure
+        if: always()
+        run: |
+          $privateRoot = [IO.Path]::GetFullPath((Join-Path $env:RUNNER_TEMP "webview2-native-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"))
+          $temporaryRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\') + '\'
+          if (-not $privateRoot.StartsWith($temporaryRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid cleanup root.' }
+          if (Test-Path -LiteralPath $privateRoot) { Remove-Item -LiteralPath $privateRoot -Recurse -Force }
+          @{ PrivateEvidenceRemoved = -not (Test-Path -LiteralPath $privateRoot); RawExported = $false } |
+            ConvertTo-Json | Set-Content artifacts/native-export/native-cleanup.json
       - name: Upload explicit passive exports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -114,5 +149,8 @@ jobs:
             artifacts/native-export/profile-report-status.json
             artifacts/native-export/baseline-status.json
             artifacts/native-export/desktop-ui.trx
+            artifacts/native-export/native-tool-preflight.json
+            artifacts/native-export/native-analysis.json
+            artifacts/native-export/native-cleanup.json
           if-no-files-found: warn
           retention-days: 3
