@@ -43,12 +43,19 @@ implementation is part of this deployment. Existing archives remain unchanged.
 3. Configure origin as https://github.com/sstefanczuk/timesheet-assistant.git.
    Inspect remote history before pushing; never force-push unrelated history.
 4. Run `dotnet build TimesheetAssistant.sln`,
-   `dotnet test src/TimesheetAssistant.Tests/TimesheetAssistant.Tests.csproj`, and
+   `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`, and
    `dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json`.
-   Record blocked checks independently. The current empty tests prove discovery
-   only, not functionality. Report audit findings instead of hiding them.
+   Record blocked checks independently. The empty pure-logic suite proves discovery
+   only; run the desktop suite locally after packaging while its CI gate is
+   deferred. Report audit findings instead of hiding them.
 5. Run the packaging script with the exact source commit, preview version and
    build number; locally use an ignored output directory unique to that attempt.
+   Set `TIMESHEET_ASSISTANT_TEST_APP` to the absolute published
+   `artifacts/publish-<version>/TimesheetAssistant.exe` path (or the corresponding
+   local output path), then run
+   `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx`.
+   Windows x64 and WebView2 Evergreen Runtime are required. Full local publication
+   commands are in `src/TimesheetAssistant.UiTests/README.md`.
 6. Commit only reviewed deployment changes, push main and inspect the Actions run
    with `gh run list` and `gh run view <run-id> --log-failed`.
 7. Download the draft's uploaded ZIP with
@@ -153,6 +160,143 @@ test or clean-machine compatibility is claimed.
   xUnit suite, no clean-device verification, and artifact-action deprecation
   annotations noted above. These do not block the approved technical prerelease.
 
+## Desktop UI gate candidate: F-01 phase 3
+
+Status as of 2026-11-11: hosted desktop CI work is deferred. The exact workflow
+candidate is preserved in local branch `wip/f-01-desktop-ui-gate-20261111`, commit
+`8980a91`. Main retains its existing build/package/release workflow without this
+gate. The workflow behavior below describes the candidate used in experiments;
+it is not active on main. A green main build does not establish desktop CI
+acceptance. Local desktop verification remains required.
+
+Current implementation as of 2026-11-08 supersedes the historical empty-test
+description above. UnitTests remains empty and reserved for pure logic. UiTests
+now launches the real unpackaged Release EXE, connects Playwright .NET to its
+WebView2, and exercises Home → Counter → count 0 to 1. The author confirmed the
+local visible flow and ordinary application/independent WebView2 behavior in
+phase 2. Counter is temporary and will be replaced in S-01 with work-entry tests,
+isolated domain storage, and explicit restart/read checks. The current test does
+not verify persistence or clean-device compatibility.
+
+The candidate `Windows preview` build job retains restore, Release build,
+dependency audit and packaging. It runs UnitTests before packaging, verifies a WebView2 Evergreen
+runtime executable exists in the runner's machine/user installation directories,
+then sets `TIMESHEET_ASSISTANT_TEST_APP` to
+`artifacts/publish-<version>/TimesheetAssistant.exe` and runs:
+
+```powershell
+dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --no-build --logger 'trx;LogFileName=desktop-ui.trx' --results-directory artifacts/desktop-ui
+```
+
+A missing runtime gives a clear failure, not a skip. The gate requires both a
+successful runner exit (including fixture teardown) and a completed TRX with at
+least one executed test, all passing and zero failures. Only then are release
+inputs uploaded. The release job still requires successful completion of build;
+a desktop failure must prevent release. Debugging/profiles are configured only
+for the launched test process, without changing the normal application/package.
+
+`desktop-ui-diagnostics` is a separate artifact with three-day retention and an
+`always()` upload. Its `artifacts/desktop-ui/` contents include `runtime.log`,
+`desktop-ui.trx` when produced, and per-session startup/PID/stage/endpoint/cleanup
+logs. Screenshots and traces are retained for failures when a connected page is
+available; pre-connection failures cannot supply them. Earlier build failures
+may leave no desktop diagnostics. The existing `windows-preview` artifact remains
+the release input and also retains its three-day lifetime.
+
+CI acceptance is **pending**. Initial runner attempts on 2026-11-08 failed:
+
+- [Normal attempt](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42459710244)
+  and [negative attempt](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42459712349)
+  both passed build, packaging and runtime detection, then timed out waiting for
+  CDP within 60 seconds. Both retained TRX and startup/runtime logs and completed
+  cleanup. No page was connected, so no screenshot/trace was available. The
+  negative attempt skipped an eligible inert release sentinel with `needs: build`,
+  but never reached the deliberately wrong assertion and does not prove that
+  acceptance criterion. Neither attempt published a release.
+
+- A minimal [elevation probe](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42460440845)
+  confirmed the hosted runner is elevated. WebView2 ignores user-scoped
+  environment overrides in elevated hosts. The fixture now launches only the
+  application with a verified non-elevated medium-integrity token, preserving
+  suspended creation, job ownership and child-private settings. An initial
+  `CreateProcessWithTokenW` attempt failed with Access denied on the runner's
+  restricted-token path. A narrow console probe confirmed the EXE is readable
+  under that token; the corrected path uses `CreateProcessAsUserW` for the
+  caller's own restricted token. Linked filtered tokens retain
+  `CreateProcessWithTokenW`. No machine registry, policies or ACLs were changed.
+
+Final full attempts after the two bounded corrections also failed:
+
+- [Normal run](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42461643870)
+  found a CDP listener owned by the test application's job, then Playwright failed
+  the connection with `ECONNREFUSED`.
+- [Negative run](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42461646251)
+  found an owned listener, then failed with `ECONNRESET`. It never reached the
+  deliberately wrong Counter assertion. Its eligible inert release sentinel was
+  skipped because build failed.
+- Both retained TRX, runtime and session logs, completed cleanup, skipped release
+  inputs and release, and published nothing. No page connection means no page
+  screenshot/trace was available. The separate diagnostic artifact retained its
+  three-day expiry; downloaded copies are under ignored `artifacts/phase3-ci/`.
+- Local Release build and the unchanged desktop interaction test passed after
+  the final correction. This does not establish hosted-runner acceptance. The
+  two-correction limit is exhausted; further diagnosis needs an explicit decision.
+
+### Renewed investigation
+
+The user authorized a fresh limit of two corrections on `windows-2025`.
+Proxy-disabled, ownership-checked HTTP discovery retrieved a valid websocket URL,
+but the browser listener disappeared before attachment. The normal
+[discovery run](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42476450437)
+and its [negative counterpart](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42476453143)
+both failed before UI assertions. The local interaction test passed even with an
+unreachable HTTP proxy configured only for that test subprocess.
+
+A narrow [context probe](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42478074065)
+confirmed the parent and own child shared `WinSta0/Default` and the same session;
+the exact standard token could write/delete markers in the test profile and
+artifact directories. No desktop, ACL or machine-policy changes were needed.
+Own-instance runtime logs were inconclusive. A private-job
+[lifecycle probe](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42478365625)
+then established WebView2 exits with `0x80000003` before cleanup. It observes only
+job-owned process handles, never unrelated processes or command lines.
+
+The last correction removed the extra `DISABLE_MAX_PRIVILEGE` flag while retaining
+the standard LUA token and explicit non-elevated/medium-integrity verification.
+Local Release build and desktop interaction passed. The full
+[current-publication run](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42478901525)
+still failed: owned WebView2 PIDs 2916 and 5788 exited with `0x80000003` before
+cleanup, while the application remained alive. It retained TRX/runtime/lifecycle
+diagnostics with three-day expiry, completed cleanup, and skipped release-input
+upload and release. It never reached Home/Counter assertions. The matching
+[negative run](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42478904280)
+also failed: owned WebView2 PIDs 1512 and 7360 exited with `0x80000003` before
+cleanup. Its eligible inert release sentinel was skipped; diagnostic upload and
+cleanup succeeded, and release-input upload was skipped. Neither a passing
+desktop run nor the required controlled Counter assertion failure was established.
+
+Both renewed corrections are exhausted. The native failing module/check is not
+identified; `0x80000003` alone does not establish it. Further work should diagnose
+the WebView2 native failure before choosing another workaround. At the end of
+that investigation the workflow remained an uncommitted candidate, not an
+accepted release gate; it is now preserved at `8980a91`. No main push or release
+was performed during this investigation; F-01 remains incomplete.
+
+Required acceptance proofs remain pending:
+
+- Success proof: pending a `windows-2025` run on the changed workflow that executes
+  at least one desktop test against the published Release EXE and supplies its TRX.
+- Controlled-failure proof: pending a run with the final Counter assertion
+  temporarily set to 2, showing failed build, blocked release, and retained
+  available TRX/log/screenshot/trace diagnostics. Restore the assertion afterward;
+  never merge the deliberately failing test.
+
+F-01 remains incomplete until both real run links and outcomes are recorded.
+The successful first-deployment runs above verify the previous workflow and are
+not evidence of this desktop gate. If runner execution fails after diagnosis and
+reasonable corrections, record the failure and agree the next step with the
+user; no switch to a self-hosted runner or browser-only substitute is approved.
+
 ### Native diagnosis handoff — 2026-11-09
 
 The [supporting native diagnosis report](../changes/diagnose-webview2-native-crash/diagnosis.md)
@@ -178,3 +322,18 @@ acceptance proofs still pending. The successful diagnostic collection/cleanup
 does not accept the Windows preview gate. No persistence or clean-device proof
 was added. Supporting diagnostic work is recorded in commits `29a3054` and
 `49d90c5`; earlier F-01/deployment history remains unchanged.
+
+### Deferral and preserved work — 2026-11-11
+
+The user approved keeping the candidate off main and committing the diagnostic
+history and current test documentation. The checkpoint on
+`wip/f-01-desktop-ui-gate-20261111` preserves only the pending preview workflow;
+the already committed test fixture and native diagnostic tooling remain on main.
+F-01 and its hosted success/controlled-assertion-failure proofs remain incomplete.
+
+This cleanup does not push commits, run CI, publish a release or change repository
+publication settings. Existing main publishing behavior therefore remains in
+place; any future push must account for automatic technical prereleases without
+a desktop gate. Those previews must not be described as desktop-CI-verified or
+as an accepted MVP. Product work continues to require local logic and real
+desktop checks; S-01 must cover isolated storage and save/restart/read behavior.

@@ -32,6 +32,23 @@ Controlled probes can instantiate the fixture with a custom options record.
 Desktop tests do not share an instance in parallel. No global environment or
 normal application debug setting changes.
 
+CDP readiness polls only the owned loopback `/json/version/` endpoint with an
+HTTP client that disables proxies and redirects. Each request has at most two
+seconds within the same 60-second startup budget. Transient HTTP transport errors
+and request timeouts retry discovery; malformed responses or foreign listeners
+fail immediately. Ownership is checked before requests, after discovery and before
+the single websocket attachment. The returned websocket URL must use `ws`, the
+reserved port and IPv4 loopback (`localhost` is normalized to `127.0.0.1`). Only
+changed readiness reasons are logged. UI actions and assertions are not retried.
+
+Elevated test runners launch only the application with a non-elevated,
+medium-integrity token: the linked filtered token when available, otherwise a
+LUA restricted token with medium integrity. WebView2 ignores environment
+overrides in elevated hosts, so both the launch token and actual suspended child
+token are checked before resume. Failure to create or validate that token fails
+startup and cleans up the owned child. Standard local launches retain their
+existing process-creation path. No machine policy or registry settings change.
+
 The single desktop smoke test recognizes Home, opens a collapsed navigation menu,
 follows Counter, checks `Current count: 0`, clicks `Click me` and checks
 `Current count: 1`. Locators use roles and accessible names where provided. The
@@ -42,6 +59,15 @@ the UI budget without fixed UI sleeps. Run twice to check independent profiles.
 `artifacts/desktop-ui/` directory. Each fixture creates a unique subdirectory
 there containing `desktop.log`: timestamped startup, profile, PID, CDP endpoint,
 interaction stage and cleanup evidence. Logs remain on success and failure.
+Process lifecycle diagnostics read IDs only from the private Windows job, retain
+verified handles against PID reuse, and log basename/PID/exit-code transitions.
+They distinguish natural exits from test-driven cleanup and never enumerate
+unrelated processes or record command lines. Diagnostic errors preserve the
+original test failure.
+The launched child also receives Chromium's `--enable-logging` and an explicit
+`--log-file` inside that session's artifact directory. `webview2.log`, when the
+runtime produces it, helps diagnose browser startup/exit before CDP attachment.
+Verbose logging, sandbox/GPU overrides and global browser settings are not enabled.
 On failure, `failure.png` and `trace.zip` are saved if the page and tracing are
 available. Failures before connection cannot produce page artifacts. Diagnostic
 write failures do not replace the original exception. Before terminating the app,
@@ -63,7 +89,57 @@ pwsh bin/Debug/net10.0-windows/playwright.ps1 show-trace <path-to-trace.zip>
 Counter is temporary: S-01 replaces this scenario with work-entry tests, retaining
 the fixture and adding isolated domain storage and explicit restart/read checks.
 A WebView2 profile is not domain-storage isolation. This smoke test proves no
-work-entry persistence. CI execution belongs to phase 3.
+work-entry persistence.
+
+## Deferred CI release gate
+
+As of 2026-11-11, the desktop CI gate is deferred. Its exact workflow candidate
+is preserved in local branch `wip/f-01-desktop-ui-gate-20261111`, commit `8980a91`.
+Main retains its existing build/package/release workflow without this gate.
+Keep running this suite locally against the published EXE. A green main build
+does not establish desktop UI acceptance.
+
+The candidate `Windows preview` workflow on `windows-2025` restores and builds
+the solution, runs UnitTests, audits dependencies and packages the application. It checks the
+machine/user WebView2 Evergreen installation directories before running this
+project. A missing runtime fails with `runtime.log`; it never skips the suite.
+After packaging, the workflow runs:
+
+```powershell
+$env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path $env:GITHUB_WORKSPACE "artifacts/publish-$env:PREVIEW_VERSION/TimesheetAssistant.exe"
+dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --no-build --logger 'trx;LogFileName=desktop-ui.trx' --results-directory artifacts/desktop-ui
+```
+
+`PREVIEW_VERSION` comes from the workflow's packaging step. For a local package,
+assign its absolute EXE path directly instead. The candidate requires a zero
+runner exit code (including fixture cleanup), an existing completed TRX, at least one executed
+test and all executed tests passing. Release-input upload follows this gate;
+the release job depends on the successful build job.
+
+In the candidate, the separate `desktop-ui-diagnostics` artifact uploads
+`artifacts/desktop-ui/` even on failure and expires after three days. It contains `runtime.log`,
+`desktop-ui.trx` when the runner produced it, and the per-session diagnostics
+described above. Failure before a page connection cannot provide a screenshot
+or trace. Failure before these steps may leave no diagnostics to upload.
+
+CI acceptance remains pending. After two correction rounds, the latest
+[normal attempt](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42478901525)
+observed owned WebView2 processes exit with `0x80000003` before cleanup, while the
+application remained alive. It never connected to a page. It retained TRX,
+runtime and own-process lifecycle logs, completed cleanup and blocked release.
+The matching [negative attempt](https://github.com/sstefanczuk/timesheet-assistant/actions/runs/42478904280)
+is recorded with the final investigation outcome in `context/deployment/deploy-plan.md`.
+No page connection means no page screenshot/trace was available. An unreachable
+HTTP proxy and standard-token profile writes were checked separately; neither is
+established as the cause. The exact failing native module/check remains unknown.
+F-01 remains incomplete until a real passing run and a controlled assertion-failure
+run establish the required outcomes. Local success does not establish CI success
+or clean-device compatibility.
+
+The subsequent [native diagnosis report](../../context/changes/diagnose-webview2-native-crash/diagnosis.md)
+is inconclusive: no failing native module or stack was established. The final
+active analysis returned `budget-exhausted` without identifying the exact limit;
+cleanup succeeded. Deferral does not authorize another diagnostic run.
 
 Version evidence checked on 2026-11-07: current stable
 [Microsoft.Playwright 1.64.1](https://www.nuget.org/packages/Microsoft.Playwright/1.64.1).
