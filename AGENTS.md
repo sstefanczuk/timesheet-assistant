@@ -38,6 +38,8 @@ Run UnitTests before packaging and UiTests against `artifacts/publish-<version>/
 
 The desktop CI gate is deferred as of 2026-11-11. Its workflow candidate is preserved in local branch `wip/f-01-desktop-ui-gate-20261111` at `8980a91`; main retains its existing build/package/release workflow without the desktop gate. The candidate requires a successful runner exit and a TRX with at least one executed test and no failures, and uploads `desktop-ui-diagnostics` separately even after failure with three-day retention. Continue local desktop verification; a green main build does not establish desktop CI acceptance. F-01 remains incomplete until successful and controlled-failure CI runs are recorded.
 
+Under roadmap v3, F-01 does not block planning, implementation or local acceptance of product slices S-01–S-08. Verify each feature with appropriate local unit and real desktop UI tests and record the results; S-01 must cover isolated storage and save/restart/read behavior. Resume the remaining CI work in the existing F-01 after all product slices, before closing M-1. Do not create a duplicate CI item or treat the earlier Counter smoke as evidence for new features.
+
 Follow the observed commit style: `chore: initialize Windows MAUI Blazor solution`, `docs: add root agent instructions`.
 
 <!-- BEGIN @przeprogramowani/10x-cli -->

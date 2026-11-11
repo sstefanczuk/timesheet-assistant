@@ -2,6 +2,9 @@
 
 Stan na 2026-11-11: **praca nad desktopowym CI odłożona, F-01 nieukończone**.
 Status zmiany pozostaje `implementing`, a w roadmapie `in-progress`.
+F-01 nie blokuje funkcji produktowych: rozwijamy je i odbieramy z lokalnymi
+testami UI. Do pozostałej części F-01 wracamy po S-01–S-08, przed zamknięciem M-1.
+Zachowujemy istniejący element i historię; nie tworzymy osobnego zadania CI.
 
 ## Gdzie są zmiany
 
@@ -43,7 +46,10 @@ diagnozy. Ewentualny push należy uzgodnić osobno. Ta notatka nie uruchamia CI.
   Zielony build nie potwierdza desktopowego CI. Dotychczasowe ustawienia
   automatycznych technicznych prerelease pozostają niezmienione.
 - Testy lokalne pozostają wymagane; trwałość i izolacja danych należą do S-01.
-  Ta notatka nie zmienia zależności S-01 od F-01 w roadmapie ani kryteriów odbioru.
+  [Roadmapa v3](../../foundation/roadmap.md) usuwa zależność S-01 od F-01 i oznacza
+  S-01 jako gotowe do planowania. Dotychczasowe lokalne dowody dotyczą Counter;
+  nowe funkcje wymagają własnych testów i zapisanych wyników. Kryteria końcowego
+  odbioru F-01 pozostają otwarte.
 
 ## Jak obejrzeć i odzyskać kandydata
 
@@ -70,6 +76,11 @@ Pozostawienie aktualnego kodu aplikacji i testów pozwala kontynuować po kolejn
 funkcjach; starego checkpointu nie traktować jako gotowej gałęzi do scalenia.
 
 ## Pierwszy krok przy wznowieniu
+
+Wznowienie następuje po wycinkach produktowych. Najpierw sprawdzić aktualny plan
+fazy 3: S-01 zastępuje tymczasowy Counter, więc scenariusze sukcesu i kontrolowanej
+awarii muszą dotyczyć aktualnej aplikacji. Zmianę planu i ewentualne eksperymenty
+uzgodnić przed ich wykonaniem; nie przywracać starego startera jako testu produktu.
 
 Przeczytać [rekomendację raportu](../diagnose-webview2-native-crash/diagnosis.md#rekomendowany-dalszy-krok):
 osobno uzgodnić zmianę zapisującą dokładny warunek przerwania analizy i zmierzone
