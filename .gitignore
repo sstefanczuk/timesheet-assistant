@@ -1,6 +1,7 @@
 # Course-provided skills
 .agents/**/10x-*
 .agents/prompts/
+.agents/.10x-cli-manifest.json
 
 # .NET build and test output
 **/bin/
