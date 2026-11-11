@@ -3,7 +3,7 @@ project: Timesheet Assistant
 version: 2
 status: active
 created: 2026-11-01
-updated: 2026-11-07
+updated: 2026-11-11
 prd_version: 1
 main_goal: low-complexity
 top_blocker: capacity
@@ -71,6 +71,7 @@ Stan zbadany w kodzie i dokumentach, potwierdzony przez użytkownika; zapisany 2
 
 ### F-01: Sprawdzalna ścieżka uruchomienia aplikacji
 
+- **Powrót do pracy:** [Stan F-01 i zachowana gałąź workflow](../changes/verify-desktop-ui-path/resume.md) — desktopowe CI odłożone 2026-11-11; F-01 pozostaje nieukończone.
 - **Outcome:** (foundation) Umożliwić automatyczne uruchomienie aplikacji i interakcję z jej interfejsem na odizolowanych danych w CI.
 - **Change ID:** verify-desktop-ui-path
 - **PRD refs:** US-01; Non-Functional Requirements

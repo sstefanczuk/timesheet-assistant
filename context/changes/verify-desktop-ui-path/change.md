@@ -11,6 +11,8 @@ archived_at: null
 
 F-01 z roadmapy M-1. Plan przygotowany z umiejętnością 10x-plan po uzgodnieniu zakresu i trzech faz. Counter jest tymczasowym scenariuszem; S-01 zastąpi go testem rzeczywistej pracy. Problemy runnera zatrzymują odbiór i wymagają uzgodnienia dalszego kroku.
 
+**Powrót do odłożonej pracy:** [stan F-01, zachowana gałąź i polecenia wznowienia](resume.md).
+
 ## Phase 1 verification — 2026-11-07
 
 - User approved updating the pinned SDK from 10.0.402 to installed 10.0.403. Retained workload set 10.0.402.1; `dotnet workload --info` resolves maui-windows 10.0.110. Local solution build passed with zero warnings/errors. CI reads SDK selection from global.json; no remote CI run has been claimed.
