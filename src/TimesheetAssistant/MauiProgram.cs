@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 
+using TimesheetAssistant.Core.Features.Workdays;
+using TimesheetAssistant.Features.Workdays;
+
 namespace TimesheetAssistant;
 
 public static class MauiProgram
@@ -15,6 +18,12 @@ public static class MauiProgram
 			});
 
 		builder.Services.AddMauiBlazorWebView();
+		builder.Services.AddSingleton<StorageInitialization>();
+		builder.Services.AddSingleton<IWorkEntryStore>(services =>
+			services.GetRequiredService<StorageInitialization>().Store
+			?? throw new InvalidOperationException("Local storage is unavailable."));
+		builder.Services.AddScoped(services => new WorkdayService(
+			services.GetRequiredService<IWorkEntryStore>(), () => DateOnly.FromDateTime(DateTime.Now)));
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

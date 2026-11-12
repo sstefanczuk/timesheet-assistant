@@ -277,8 +277,8 @@ No domain store exists today, so v1 creates an empty database only when none exi
 
 #### Automated
 
-- [ ] 2.1 Solution build and pure unit tests pass after adding the provider: `dotnet build TimesheetAssistant.sln` and the UnitTests project command.
-- [ ] 2.2 Dependency audit completes and findings are recorded: `dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json`.
+- [x] 2.1 Solution build and pure unit tests pass after adding the provider: `dotnet build TimesheetAssistant.sln` and the UnitTests project command.
+- [x] 2.2 Dependency audit completes and findings are recorded: `dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json`.
 
 ### Phase 3: Workday Recording Screen
 

@@ -1,7 +1,7 @@
 ---
 change_id: record-persistent-workday
 title: Record persistent workday
-status: impl_reviewed
+status: implementing
 created: 2026-11-11
 updated: 2026-11-12
 archived_at: null
@@ -16,3 +16,5 @@ S-01 from roadmap v3. Complexity MEDIUM and seven design questions confirmed by 
 2026-11-12: User requested readable unit tests with explicit Arrange/Act/Assert comments and incidental setup extracted into builders, extension methods, private methods or similar helpers. Recorded in src/AGENTS.md and the plan/brief; test scenarios and execution Progress remain unchanged.
 
 2026-11-12: Phase 1 implemented: portable Core rules, service/store contracts and pure fake-store tests. Local verification: 87 passed, 0 failed, 0 skipped; solution build succeeded with 0 warnings and 0 errors. A temporary zero-duration parser mutation caused 3 expected test failures, was restored from staging, and the full pure suite passed again. No persistence or desktop acceptance is claimed; phases 2–4 remain pending.
+
+2026-11-12: Phase 2 adds SQLite schema v1 and transactional CRUD, canonical data-directory resolution, an exclusive app-lifetime file lease, storage composition and an English unavailable/Retry screen. Microsoft.Data.Sqlite is pinned to 10.0.11. Local build, pure tests and dependency audit are recorded in verification.md. The selected implementation subagent lacked filesystem tools and returned without modifications; implementation continued in the parent context. No real-store/UI acceptance is claimed; phases 3–4 remain pending.

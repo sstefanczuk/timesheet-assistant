@@ -1,0 +1,50 @@
+@namespace TimesheetAssistant.Features.Workdays
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@inject StorageInitialization Storage
+
+@if (_loading)
+{
+    <main class="container p-4" aria-busy="true">
+        <h1>Opening local storage</h1>
+        <p role="status">Please wait.</p>
+    </main>
+}
+else if (Storage.Store is null)
+{
+    <main class="container p-4">
+        <h1>Local storage unavailable</h1>
+        <p role="alert">@Storage.ErrorMessage</p>
+        <button type="button" class="btn btn-primary" @onclick="InitializeAsync">Retry</button>
+    </main>
+}
+else
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync()
+    {
+        return InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            await Storage.InitializeAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
