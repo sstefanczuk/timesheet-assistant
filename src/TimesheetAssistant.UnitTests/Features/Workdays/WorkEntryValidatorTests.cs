@@ -4,7 +4,7 @@ namespace TimesheetAssistant.UnitTests.Features.Workdays;
 
 public class WorkEntryValidatorTests
 {
-    private static readonly DateOnly Today = new(2026, 11, 12);
+    private static readonly DateOnly _today = new(2026, 11, 12);
 
     [Theory]
     [InlineData(null, "")]
@@ -14,12 +14,14 @@ public class WorkEntryValidatorTests
     {
         // Arrange
         var input = new WorkEntryInput("  arbitrary ticket  ", "  A title  ", description, "1h");
+
         // Act
-        var result = WorkEntryValidator.Validate(Today, Today, input);
+        var result = WorkEntryValidator.Validate(_today, _today, input);
+
         // Assert
-        Assert.True(result.IsValid);
-        Assert.Equal(new WorkEntryValues("arbitrary ticket", "A title", expectedDescription, 60), result.Values);
-        Assert.Empty(result.Errors);
+        result.IsValid.ShouldBeTrue();
+        result.Values.ShouldBe(new WorkEntryValues("arbitrary ticket", "A title", expectedDescription, 60));
+        result.Errors.ShouldBeEmpty();
     }
 
     [Theory]
@@ -31,11 +33,13 @@ public class WorkEntryValidatorTests
     {
         // Arrange
         var input = new WorkEntryInput(jiraId, title, null, "1m");
+
         // Act
-        var result = WorkEntryValidator.Validate(Today, Today, input);
+        var result = WorkEntryValidator.Validate(_today, _today, input);
+
         // Assert
-        Assert.False(result.IsValid);
-        Assert.Contains(field, result.Errors.Keys);
+        result.IsValid.ShouldBeFalse();
+        result.Errors.Keys.ShouldContain(field);
     }
 
     [Fact]
@@ -44,10 +48,12 @@ public class WorkEntryValidatorTests
         // Arrange
         var text = new string('x', 10000);
         var input = new WorkEntryInput(text, text, text, "1m");
+
         // Act
-        var result = WorkEntryValidator.Validate(Today, Today, input);
+        var result = WorkEntryValidator.Validate(_today, _today, input);
+
         // Assert
-        Assert.True(result.IsValid);
-        Assert.Equal(text, result.Values!.Description);
+        result.IsValid.ShouldBeTrue();
+        result.Values!.Description.ShouldBe(text);
     }
 }

@@ -4,7 +4,8 @@ namespace TimesheetAssistant.UnitTests.Features.Workdays;
 
 public class WorkdayServiceTests
 {
-    private static readonly DateOnly Today = new(2026, 11, 12);
+    private static readonly DateOnly _today = new(2026, 11, 12);
+
     private static WorkEntryInput Input(string duration = "1h") => new("T-1", "Title", null, duration);
 
     [Theory]
@@ -16,14 +17,16 @@ public class WorkdayServiceTests
     {
         // Arrange
         var store = new FakeWorkEntryStore();
-        var service = new WorkdayService(store, () => Today);
-        var future = Today.AddDays(1);
+        var service = new WorkdayService(store, () => _today);
+        var future = _today.AddDays(1);
+
         // Act
         var result = await OperateAsync(service, operation, Guid.NewGuid(), future);
+
         // Assert
-        Assert.False(result.IsSuccess);
-        Assert.Equal(WorkdayFailure.Validation, result.Failure);
-        Assert.Equal(0, store.Calls);
+        result.IsSuccess.ShouldBeFalse();
+        result.FailureReason.ShouldBe(WorkdayFailure.Validation);
+        store.Calls.ShouldBe(0);
     }
 
     [Theory]
@@ -33,16 +36,18 @@ public class WorkdayServiceTests
     {
         // Arrange
         var store = new FakeWorkEntryStore();
-        var service = new WorkdayService(store, () => Today);
+        var service = new WorkdayService(store, () => _today);
         var invalid = new WorkEntryInput(" ", " ", null, "6h60m");
+
         // Act
-        var result = operation == "add" ? await service.AddAsync(Today, invalid)
-            : await service.UpdateAsync(Guid.NewGuid(), Today, invalid);
+        var result = operation == "add" ? await service.AddAsync(_today, invalid)
+            : await service.UpdateAsync(Guid.NewGuid(), _today, invalid);
+
         // Assert
-        Assert.False(result.IsSuccess);
-        Assert.Equal(WorkdayFailure.Validation, result.Failure);
-        Assert.Equal(3, result.Errors!.Count);
-        Assert.Equal(0, store.Calls);
+        result.IsSuccess.ShouldBeFalse();
+        result.FailureReason.ShouldBe(WorkdayFailure.Validation);
+        result.Errors!.Count.ShouldBe(3);
+        store.Calls.ShouldBe(0);
     }
 
     [Theory]
@@ -55,11 +60,13 @@ public class WorkdayServiceTests
         var date = new DateOnly(year, month, day);
         var service = CreateService();
         await service.LoadAsync(date);
+
         // Act
         var result = await service.AddAsync(date, Input());
+
         // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(date, Assert.Single(service.Snapshot!.Entries).WorkDate);
+        result.IsSuccess.ShouldBeTrue();
+        service.Snapshot!.Entries.ShouldHaveSingleItem().WorkDate.ShouldBe(date);
     }
 
     [Fact]
@@ -69,19 +76,23 @@ public class WorkdayServiceTests
         var service = await DayWithTwoRepeatedTicketsAsync();
         var original = service.Snapshot!.Entries[0];
         var second = service.Snapshot.Entries[1];
+
         // Act
-        var result = await service.UpdateAsync(original.Id, Today, new("T-1", "Changed", "Details", "2m"));
+        var result = await service.UpdateAsync(original.Id, _today, new("T-1", "Changed", "Details", "2m"));
+
         // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(2, service.Snapshot!.Entries.Count);
+        result.IsSuccess.ShouldBeTrue();
+        service.Snapshot!.Entries.Count.ShouldBe(2);
+
         var edited = service.Snapshot.Entries[0];
-        Assert.Equal(original.Id, edited.Id);
-        Assert.Equal(original.CreationOrder, edited.CreationOrder);
-        Assert.Equal(original.WorkDate, edited.WorkDate);
-        Assert.Equal("Changed", edited.Title);
-        Assert.Equal(2, edited.DurationMinutes);
-        Assert.Equal(second, service.Snapshot.Entries[1]);
-        Assert.NotEqual(original.Id, second.Id);
+        edited.Id.ShouldBe(original.Id);
+        edited.CreationOrder.ShouldBe(original.CreationOrder);
+        edited.WorkDate.ShouldBe(original.WorkDate);
+        edited.Title.ShouldBe("Changed");
+        edited.DurationMinutes.ShouldBe(2);
+
+        service.Snapshot.Entries[1].ShouldBe(second);
+        second.Id.ShouldNotBe(original.Id);
     }
 
     [Fact]
@@ -89,16 +100,18 @@ public class WorkdayServiceTests
     {
         // Arrange
         var service = await DayWithTwoRepeatedTicketsAsync();
-        var past = Today.AddDays(-1);
+        var past = _today.AddDays(-1);
         await service.AddAsync(past, Input("2m"));
         var todaySnapshot = service.Snapshot;
+
         // Act
         var result = await service.LoadAsync(past);
+
         // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(120, todaySnapshot!.Totals.TotalMinutes);
-        Assert.Equal(2, service.Snapshot!.Totals.TotalMinutes);
-        Assert.Equal(past, Assert.Single(service.Snapshot.Entries).WorkDate);
+        result.IsSuccess.ShouldBeTrue();
+        todaySnapshot!.Totals.TotalMinutes.ShouldBe(120);
+        service.Snapshot!.Totals.TotalMinutes.ShouldBe(2);
+        service.Snapshot.Entries.ShouldHaveSingleItem().WorkDate.ShouldBe(past);
     }
 
     [Fact]
@@ -107,12 +120,14 @@ public class WorkdayServiceTests
         // Arrange
         var service = await DayWithTwoRepeatedTicketsAsync();
         var snapshot = service.Snapshot!;
+
         // Act
-        var result = await service.UpdateAsync(snapshot.Entries[0].Id, Today.AddDays(-1), Input("2m"));
+        var result = await service.UpdateAsync(snapshot.Entries[0].Id, _today.AddDays(-1), Input("2m"));
+
         // Assert
-        Assert.False(result.IsSuccess);
-        Assert.Equal(WorkdayFailure.NotFound, result.Failure);
-        Assert.Same(snapshot, service.Snapshot);
+        result.IsSuccess.ShouldBeFalse();
+        result.FailureReason.ShouldBe(WorkdayFailure.NotFound);
+        service.Snapshot.ShouldBeSameAs(snapshot);
     }
 
     [Theory]
@@ -123,12 +138,14 @@ public class WorkdayServiceTests
         // Arrange
         var service = await DayWithTwoRepeatedTicketsAsync();
         var snapshot = service.Snapshot;
+
         // Act
-        var result = await OperateAsync(service, operation, Guid.NewGuid(), Today);
+        var result = await OperateAsync(service, operation, Guid.NewGuid(), _today);
+
         // Assert
-        Assert.False(result.IsSuccess);
-        Assert.Equal(WorkdayFailure.NotFound, result.Failure);
-        Assert.Same(snapshot, service.Snapshot);
+        result.IsSuccess.ShouldBeFalse();
+        result.FailureReason.ShouldBe(WorkdayFailure.NotFound);
+        service.Snapshot.ShouldBeSameAs(snapshot);
     }
 
     [Theory]
@@ -143,14 +160,17 @@ public class WorkdayServiceTests
         var service = await DayWithTwoRepeatedTicketsAsync(store);
         var snapshot = service.Snapshot!;
         store.Fail = true;
+
         // Act
-        var result = await OperateAsync(service, operation, snapshot.Entries[0].Id, Today);
+        var result = await OperateAsync(service, operation, snapshot.Entries[0].Id, _today);
+
         // Assert
-        Assert.False(result.IsSuccess);
-        Assert.Equal(WorkdayFailure.Storage, result.Failure);
-        Assert.Same(snapshot, service.Snapshot);
+        result.IsSuccess.ShouldBeFalse();
+        result.FailureReason.ShouldBe(WorkdayFailure.Storage);
+        service.Snapshot.ShouldBeSameAs(snapshot);
+
         store.Fail = false;
-        Assert.Equal(snapshot.Entries, await store.ReadAsync(Today));
+        (await store.ReadAsync(_today)).ShouldBe(snapshot.Entries);
     }
 
     [Fact]
@@ -160,12 +180,14 @@ public class WorkdayServiceTests
         var service = await DayWithTwoRepeatedTicketsAsync();
         var removed = service.Snapshot!.Entries[0];
         var retained = service.Snapshot.Entries[1];
+
         // Act
-        var result = await service.DeleteAsync(removed.Id, Today);
+        var result = await service.DeleteAsync(removed.Id, _today);
+
         // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(retained, Assert.Single(service.Snapshot!.Entries));
-        Assert.Equal(60, service.Snapshot.Totals.TotalMinutes);
+        result.IsSuccess.ShouldBeTrue();
+        service.Snapshot!.Entries.ShouldHaveSingleItem().ShouldBe(retained);
+        service.Snapshot.Totals.TotalMinutes.ShouldBe(60);
     }
 
     [Fact]
@@ -174,13 +196,15 @@ public class WorkdayServiceTests
         // Arrange
         var store = new FakeWorkEntryStore();
         var service = await DayWithTwoRepeatedTicketsAsync(store);
-        await service.LoadAsync(Today);
+        await service.LoadAsync(_today);
         var snapshot = service.Snapshot!;
+
         // Act
         store.LastRead!.Clear();
+
         // Assert
-        Assert.Equal(2, snapshot.Entries.Count);
-        Assert.True(Assert.IsAssignableFrom<IList<WorkEntry>>(snapshot.Entries).IsReadOnly);
+        snapshot.Entries.Count.ShouldBe(2);
+        snapshot.Entries.ShouldBeAssignableTo<IList<WorkEntry>>().IsReadOnly.ShouldBeTrue();
     }
 
     [Fact]
@@ -191,21 +215,25 @@ public class WorkdayServiceTests
         var service = await DayWithTwoRepeatedTicketsAsync(store);
         var snapshot = service.Snapshot!;
         store.Fail = true;
+
         // Act
-        var result = await service.LoadAsync(Today.AddDays(-1));
+        var result = await service.LoadAsync(_today.AddDays(-1));
+
         // Assert
-        Assert.Equal(WorkdayFailure.Storage, result.Failure);
-        Assert.Same(snapshot, service.Snapshot);
-        Assert.Equal(Today, service.Snapshot!.Date);
+        result.FailureReason.ShouldBe(WorkdayFailure.Storage);
+        service.Snapshot.ShouldBeSameAs(snapshot);
+        service.Snapshot!.Date.ShouldBe(_today);
     }
-    private static WorkdayService CreateService(FakeWorkEntryStore? store = null) => new(store ?? new(), () => Today);
+
+    private static WorkdayService CreateService(FakeWorkEntryStore? store = null) => new(store ?? new(), () => _today);
 
     private static async Task<WorkdayService> DayWithTwoRepeatedTicketsAsync(FakeWorkEntryStore? store = null)
     {
         var service = CreateService(store);
-        await service.LoadAsync(Today);
-        await service.AddAsync(Today, Input());
-        await service.AddAsync(Today, Input());
+        await service.LoadAsync(_today);
+        await service.AddAsync(_today, Input());
+        await service.AddAsync(_today, Input());
+
         return service;
     }
 

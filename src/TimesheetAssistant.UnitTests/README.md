@@ -1,6 +1,6 @@
 # TimesheetAssistant.UnitTests
 
-xUnit test project targeting .NET 10. Run from the repository root:
+xUnit test project targeting .NET 10, using Shouldly for assertions. Run from the repository root:
 
 ```powershell
 dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj

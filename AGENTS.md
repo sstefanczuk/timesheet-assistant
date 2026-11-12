@@ -24,7 +24,7 @@ Launch the application from Visual Studio using the Windows target. Report block
 
 ## Layout and Implementation
 
-@TimesheetAssistant.sln contains the application in `src/TimesheetAssistant/` and separate tests in `src/TimesheetAssistant.UnitTests/` and `src/TimesheetAssistant.UiTests/`. Organize product code and tests by feature under `Features/<FeatureName>/` within each applicable project, following @src/AGENTS.md; keep feature-owned Razor pages with their feature. Shared Razor layouts/routing remain in `Components/`; web assets belong in `wwwroot/`, MAUI assets in `Resources/`, and Windows integration in `Platforms/Windows/`. Register application services in @src/TimesheetAssistant/MauiProgram.cs. Match neighboring file formatting; no repository-wide formatter configuration exists yet.
+@TimesheetAssistant.sln contains the application in `src/TimesheetAssistant/` and separate tests in `src/TimesheetAssistant.UnitTests/` and `src/TimesheetAssistant.UiTests/`. Organize product code and tests by feature under `Features/<FeatureName>/` within each applicable project, following @src/AGENTS.md; keep feature-owned Razor pages with their feature. Shared Razor layouts/routing remain in `Components/`; web assets belong in `wwwroot/`, MAUI assets in `Resources/`, and Windows integration in `Platforms/Windows/`. Register application services in @src/TimesheetAssistant/MauiProgram.cs. Follow @.editorconfig and the C# style and spacing rules in @src/AGENTS.md.
 
 Use @context/foundation/prd.md for product scope and @context/foundation/tech-stack.md for stack decisions. Local persistence is required by the MVP; Jira/MyWork integrations and authentication remain out of scope.
 

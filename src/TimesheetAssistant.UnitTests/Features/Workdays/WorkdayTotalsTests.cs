@@ -15,12 +15,14 @@ public class WorkdayTotalsTests
     {
         // Arrange
         var entries = EntriesWithTotal(total);
+
         // Act
         var totals = WorkdayTotals.Calculate(entries);
+
         // Assert
-        Assert.Equal(total, totals.TotalMinutes);
-        Assert.Equal(remaining, totals.RemainingMinutes);
-        Assert.Equal(excess, totals.ExcessMinutes);
+        totals.TotalMinutes.ShouldBe(total);
+        totals.RemainingMinutes.ShouldBe(remaining);
+        totals.ExcessMinutes.ShouldBe(excess);
     }
 
     [Fact]
@@ -29,10 +31,12 @@ public class WorkdayTotalsTests
         // Arrange
         var entry = new WorkEntry(Guid.NewGuid(), new(2026, 11, 12), "T-1", "Title", "", 1440, 1);
         var entries = Enumerable.Repeat(entry, 1_500_000);
+
         // Act
         var totals = WorkdayTotals.Calculate(entries);
+
         // Assert
-        Assert.Equal(2_160_000_000L, totals.TotalMinutes);
+        totals.TotalMinutes.ShouldBe(2_160_000_000L);
     }
 
     private static IEnumerable<WorkEntry> EntriesWithTotal(int total)
@@ -40,6 +44,7 @@ public class WorkdayTotalsTests
         while (total > 0)
         {
             var minutes = Math.Min(total, 1440);
+
             yield return new(Guid.NewGuid(), new(2026, 11, 12), "T-1", "Title", "", minutes, total);
             total -= minutes;
         }

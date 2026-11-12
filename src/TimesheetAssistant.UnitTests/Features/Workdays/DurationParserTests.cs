@@ -22,11 +22,13 @@ public class DurationParserTests
     {
         // Arrange
         var input = text;
+
         // Act
         var accepted = DurationParser.TryParse(input, out var minutes);
+
         // Assert
-        Assert.True(accepted);
-        Assert.Equal(expected, minutes);
+        accepted.ShouldBeTrue();
+        minutes.ShouldBe(expected);
     }
 
     [Theory]
@@ -66,11 +68,13 @@ public class DurationParserTests
     {
         // Arrange
         var input = text;
+
         // Act
         var accepted = DurationParser.TryParse(input, out var minutes);
+
         // Assert
-        Assert.False(accepted);
-        Assert.Equal(0, minutes);
+        accepted.ShouldBeFalse();
+        minutes.ShouldBe(0);
     }
 
     [Theory]
@@ -84,9 +88,11 @@ public class DurationParserTests
     {
         // Arrange
         var total = minutes;
+
         // Act
         var formatted = DurationParser.Format(total);
+
         // Assert
-        Assert.Equal(expected, formatted);
+        formatted.ShouldBe(expected);
     }
 }
