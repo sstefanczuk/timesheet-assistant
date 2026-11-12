@@ -1,0 +1,220 @@
+using TimesheetAssistant.Core.Features.Workdays;
+
+namespace TimesheetAssistant.UnitTests.Features.Workdays;
+
+public class WorkdayServiceTests
+{
+    private static readonly DateOnly Today = new(2026, 11, 12);
+    private static WorkEntryInput Input(string duration = "1h") => new("T-1", "Title", null, duration);
+
+    [Theory]
+    [InlineData("add")]
+    [InlineData("update")]
+    [InlineData("delete")]
+    [InlineData("load")]
+    public async Task Future_dates_do_not_call_the_store(string operation)
+    {
+        // Arrange
+        var store = new FakeWorkEntryStore();
+        var service = new WorkdayService(store, () => Today);
+        var future = Today.AddDays(1);
+        // Act
+        var result = await OperateAsync(service, operation, Guid.NewGuid(), future);
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(WorkdayFailure.Validation, result.Failure);
+        Assert.Equal(0, store.Calls);
+    }
+
+    [Theory]
+    [InlineData("add")]
+    [InlineData("update")]
+    public async Task Invalid_fields_do_not_call_the_store(string operation)
+    {
+        // Arrange
+        var store = new FakeWorkEntryStore();
+        var service = new WorkdayService(store, () => Today);
+        var invalid = new WorkEntryInput(" ", " ", null, "6h60m");
+        // Act
+        var result = operation == "add" ? await service.AddAsync(Today, invalid)
+            : await service.UpdateAsync(Guid.NewGuid(), Today, invalid);
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(WorkdayFailure.Validation, result.Failure);
+        Assert.Equal(3, result.Errors!.Count);
+        Assert.Equal(0, store.Calls);
+    }
+
+    [Theory]
+    [InlineData(2026, 11, 12)]
+    [InlineData(2026, 11, 7)]
+    [InlineData(2020, 1, 1)]
+    public async Task Accepts_today_past_dates_and_weekends(int year, int month, int day)
+    {
+        // Arrange
+        var date = new DateOnly(year, month, day);
+        var service = CreateService();
+        await service.LoadAsync(date);
+        // Act
+        var result = await service.AddAsync(date, Input());
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(date, Assert.Single(service.Snapshot!.Entries).WorkDate);
+    }
+
+    [Fact]
+    public async Task Repeated_tickets_remain_separate_and_edits_keep_identity_and_order()
+    {
+        // Arrange
+        var service = await DayWithTwoRepeatedTicketsAsync();
+        var original = service.Snapshot!.Entries[0];
+        var second = service.Snapshot.Entries[1];
+        // Act
+        var result = await service.UpdateAsync(original.Id, Today, new("T-1", "Changed", "Details", "2m"));
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(2, service.Snapshot!.Entries.Count);
+        var edited = service.Snapshot.Entries[0];
+        Assert.Equal(original.Id, edited.Id);
+        Assert.Equal(original.CreationOrder, edited.CreationOrder);
+        Assert.Equal(original.WorkDate, edited.WorkDate);
+        Assert.Equal("Changed", edited.Title);
+        Assert.Equal(2, edited.DurationMinutes);
+        Assert.Equal(second, service.Snapshot.Entries[1]);
+        Assert.NotEqual(original.Id, second.Id);
+    }
+
+    [Fact]
+    public async Task Dates_have_independent_records_and_totals()
+    {
+        // Arrange
+        var service = await DayWithTwoRepeatedTicketsAsync();
+        var past = Today.AddDays(-1);
+        await service.AddAsync(past, Input("2m"));
+        var todaySnapshot = service.Snapshot;
+        // Act
+        var result = await service.LoadAsync(past);
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(120, todaySnapshot!.Totals.TotalMinutes);
+        Assert.Equal(2, service.Snapshot!.Totals.TotalMinutes);
+        Assert.Equal(past, Assert.Single(service.Snapshot.Entries).WorkDate);
+    }
+
+    [Fact]
+    public async Task Edit_cannot_move_an_entry_to_another_date()
+    {
+        // Arrange
+        var service = await DayWithTwoRepeatedTicketsAsync();
+        var snapshot = service.Snapshot!;
+        // Act
+        var result = await service.UpdateAsync(snapshot.Entries[0].Id, Today.AddDays(-1), Input("2m"));
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(WorkdayFailure.NotFound, result.Failure);
+        Assert.Same(snapshot, service.Snapshot);
+    }
+
+    [Theory]
+    [InlineData("update")]
+    [InlineData("delete")]
+    public async Task Missing_identity_retains_the_successful_snapshot(string operation)
+    {
+        // Arrange
+        var service = await DayWithTwoRepeatedTicketsAsync();
+        var snapshot = service.Snapshot;
+        // Act
+        var result = await OperateAsync(service, operation, Guid.NewGuid(), Today);
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(WorkdayFailure.NotFound, result.Failure);
+        Assert.Same(snapshot, service.Snapshot);
+    }
+
+    [Theory]
+    [InlineData("add")]
+    [InlineData("update")]
+    [InlineData("delete")]
+    [InlineData("load")]
+    public async Task Storage_failures_retain_snapshot_and_committed_records(string operation)
+    {
+        // Arrange
+        var store = new FakeWorkEntryStore();
+        var service = await DayWithTwoRepeatedTicketsAsync(store);
+        var snapshot = service.Snapshot!;
+        store.Fail = true;
+        // Act
+        var result = await OperateAsync(service, operation, snapshot.Entries[0].Id, Today);
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Equal(WorkdayFailure.Storage, result.Failure);
+        Assert.Same(snapshot, service.Snapshot);
+        store.Fail = false;
+        Assert.Equal(snapshot.Entries, await store.ReadAsync(Today));
+    }
+
+    [Fact]
+    public async Task Delete_removes_only_the_requested_identity()
+    {
+        // Arrange
+        var service = await DayWithTwoRepeatedTicketsAsync();
+        var removed = service.Snapshot!.Entries[0];
+        var retained = service.Snapshot.Entries[1];
+        // Act
+        var result = await service.DeleteAsync(removed.Id, Today);
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(retained, Assert.Single(service.Snapshot!.Entries));
+        Assert.Equal(60, service.Snapshot.Totals.TotalMinutes);
+    }
+
+    [Fact]
+    public async Task Snapshot_copies_the_store_list_and_exposes_read_only_entries()
+    {
+        // Arrange
+        var store = new FakeWorkEntryStore();
+        var service = await DayWithTwoRepeatedTicketsAsync(store);
+        await service.LoadAsync(Today);
+        var snapshot = service.Snapshot!;
+        // Act
+        store.LastRead!.Clear();
+        // Assert
+        Assert.Equal(2, snapshot.Entries.Count);
+        Assert.True(Assert.IsAssignableFrom<IList<WorkEntry>>(snapshot.Entries).IsReadOnly);
+    }
+
+    [Fact]
+    public async Task Failed_read_of_another_date_does_not_relabel_previous_records()
+    {
+        // Arrange
+        var store = new FakeWorkEntryStore();
+        var service = await DayWithTwoRepeatedTicketsAsync(store);
+        var snapshot = service.Snapshot!;
+        store.Fail = true;
+        // Act
+        var result = await service.LoadAsync(Today.AddDays(-1));
+        // Assert
+        Assert.Equal(WorkdayFailure.Storage, result.Failure);
+        Assert.Same(snapshot, service.Snapshot);
+        Assert.Equal(Today, service.Snapshot!.Date);
+    }
+    private static WorkdayService CreateService(FakeWorkEntryStore? store = null) => new(store ?? new(), () => Today);
+
+    private static async Task<WorkdayService> DayWithTwoRepeatedTicketsAsync(FakeWorkEntryStore? store = null)
+    {
+        var service = CreateService(store);
+        await service.LoadAsync(Today);
+        await service.AddAsync(Today, Input());
+        await service.AddAsync(Today, Input());
+        return service;
+    }
+
+    private static Task<WorkdayResult> OperateAsync(WorkdayService service, string operation, Guid id, DateOnly date) => operation switch
+    {
+        "add" => service.AddAsync(date, Input()),
+        "update" => service.UpdateAsync(id, date, Input("2m")),
+        "delete" => service.DeleteAsync(id, date),
+        "load" => service.LoadAsync(date),
+        _ => throw new ArgumentOutOfRangeException(nameof(operation))
+    };
+}

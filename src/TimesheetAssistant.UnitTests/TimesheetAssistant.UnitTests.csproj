@@ -18,4 +18,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\TimesheetAssistant.Core\TimesheetAssistant.Core.csproj" />
+  </ItemGroup>
+
 </Project>

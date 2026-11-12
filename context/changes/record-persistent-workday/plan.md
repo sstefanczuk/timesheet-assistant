@@ -270,8 +270,8 @@ No domain store exists today, so v1 creates an empty database only when none exi
 
 #### Automated
 
-- [ ] 1.1 Core rule and fake-store tests pass: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj` with at least one executed test and no real storage.
-- [ ] 1.2 Solution builds with Core references and the retained Windows-only app target: `dotnet build TimesheetAssistant.sln`.
+- [x] 1.1 Core rule and fake-store tests pass: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj` with at least one executed test and no real storage.
+- [x] 1.2 Solution builds with Core references and the retained Windows-only app target: `dotnet build TimesheetAssistant.sln`.
 
 ### Phase 2: Durable Local Store
 
