@@ -79,12 +79,13 @@ public sealed class DesktopAppFixture : IAsyncLifetime
     internal DesktopAppFixture(DesktopTimeouts timeouts) => this.timeouts = timeouts;
     public IPage Page { get; private set; } = null!;
     public string ProfileDirectory => Path.Combine(sessionDirectory, "webview2");
+    public string DataDirectory => Path.Combine(sessionDirectory, "data");
     public int ProcessId => application!.Id;
     public float UiTimeoutMilliseconds => (float)timeouts.Ui.TotalMilliseconds;
 
     public async Task InitializeAsync()
     {
-        RecordStage($"configuration; profile={ProfileDirectory}; artifacts={artifactDirectory}");
+        RecordStage($"configuration; profile={ProfileDirectory}; data={DataDirectory}; artifacts={artifactDirectory}");
         try { await InitializeCoreAsync(); }
         catch (Exception error)
         {
@@ -115,6 +116,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
         {
             RecordStage($"launch; executable={executable}; endpoint={endpoint}");
             Directory.CreateDirectory(ProfileDirectory);
+            Directory.CreateDirectory(DataDirectory);
             job = new OwnedProcessJob();
             var procdump = Environment.GetEnvironmentVariable("TIMESHEET_ASSISTANT_NATIVE_PROCDUMP");
             if (!string.IsNullOrWhiteSpace(procdump) && !string.IsNullOrWhiteSpace(nativePrivateRoot))
@@ -134,6 +136,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 WorkingDirectory = Path.GetDirectoryName(executable)!
             };
             start.Environment["WEBVIEW2_USER_DATA_FOLDER"] = ProfileDirectory;
+            start.Environment["TIMESHEET_ASSISTANT_DATA_DIRECTORY"] = DataDirectory;
             var runtimeLog = Path.Combine(artifactDirectory, "webview2.log");
             start.Environment["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = $"--remote-debugging-port={port} --remote-debugging-address=127.0.0.1 --enable-logging --log-file=\"{runtimeLog}\"";
             application = job.StartApplication(start, timeouts.Cleanup);
@@ -320,6 +323,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
                 await application.WaitForExitAsync(cleanup.Token);
             }
             PreserveNativeReports(cleanup.Token);
+            ValidateSessionCleanupPath();
             while (Directory.Exists(sessionDirectory))
             {
                 cleanup.Token.ThrowIfCancellationRequested();
@@ -343,6 +347,24 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             RecordStage(processesAndProfileRemoved ? "cleanup completed" : "cleanup incomplete; inspect test cleanup error");
         }
     }
+
+    private void ValidateSessionCleanupPath()
+    {
+        var root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "TimesheetAssistant.UiTests"));
+        var session = Path.GetFullPath(sessionDirectory);
+
+        if (!string.Equals(Path.GetDirectoryName(session), root, StringComparison.OrdinalIgnoreCase)
+            || !Guid.TryParseExact(Path.GetFileName(session), "N", out _))
+        {
+            throw new InvalidOperationException("Cleanup requires a unique test-owned session directory.");
+        }
+
+        if (Directory.Exists(session) && (File.GetAttributes(session) & FileAttributes.ReparsePoint) != 0)
+        {
+            throw new InvalidOperationException("Cleanup cannot remove a redirected session directory.");
+        }
+    }
+
     private void PreserveNativeReports(CancellationToken cleanup)
     {
         if (string.IsNullOrWhiteSpace(nativePrivateRoot)) return;

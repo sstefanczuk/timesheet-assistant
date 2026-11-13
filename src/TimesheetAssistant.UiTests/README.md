@@ -18,7 +18,13 @@ Remove-Item Env:TIMESHEET_ASSISTANT_TEST_APP
 ```
 
 An existing package's EXE can also be assigned directly. Only the launched child
-receives the unique `WEBVIEW2_USER_DATA_FOLDER` and loopback CDP arguments. A
+receives the unique `WEBVIEW2_USER_DATA_FOLDER` and loopback CDP arguments. The
+child-only `TIMESHEET_ASSISTANT_DATA_DIRECTORY` always overrides any inherited
+value with the session's unique absolute `data` directory, separate from the
+`webview2` profile. The configuration stage logs this path without record content.
+The session root is checked as a test-owned GUID directory before recursive
+cleanup; redirected session roots are rejected. Domain data is removed with the
+session only after owned processes exit. A
 private Windows job verifies the listener belongs to the launched process tree
 before Playwright connects. The EXE is created suspended, assigned to that job,
 then resumed so every WebView2 child starts inside the job. Assignment or resume
@@ -87,7 +93,9 @@ pwsh bin/Debug/net10.0-windows/playwright.ps1 show-trace <path-to-trace.zip>
 ```
 
 Counter is temporary: S-01 replaces this scenario with work-entry tests, retaining
-the fixture and adding isolated domain storage and explicit restart/read checks.
+the fixture and adding scenario-owned domain storage with explicit restart/read checks.
+The current single-launch fixture already isolates domain data, but does not retain
+it across session cleanup; phase 4 must add that independent scenario lifetime.
 A WebView2 profile is not domain-storage isolation. This smoke test proves no
 work-entry persistence.
 

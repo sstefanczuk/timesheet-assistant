@@ -53,12 +53,11 @@ public sealed class StorageInitialization : IDisposable
 
             if (!exists)
             {
-                // Existing empty or unversioned files are never treated as new stores.
-                using var newFile = new FileStream(databasePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                InitializeNewDatabase(databasePath);
             }
 
             store = new SqliteWorkEntryStore(databasePath);
-            store.Initialize(isNew: !exists);
+            store.Initialize(isNew: false);
             Store = store;
             _lease = lease;
             store = null;
@@ -79,6 +78,49 @@ public sealed class StorageInitialization : IDisposable
         {
             store?.Dispose();
             lease?.Dispose();
+        }
+    }
+
+    private static void InitializeNewDatabase(string databasePath)
+    {
+        var temporaryPath = databasePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var created = false;
+
+        try
+        {
+            using (var newFile = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                created = true;
+            }
+
+            using (var temporaryStore = new SqliteWorkEntryStore(temporaryPath))
+            {
+                temporaryStore.Initialize(isNew: true);
+            }
+
+            // Publish only a committed database, with all provider handles closed.
+            File.Move(temporaryPath, databasePath, overwrite: false);
+        }
+        finally
+        {
+            if (created)
+            {
+                DeleteTemporaryFile(temporaryPath + "-journal");
+                DeleteTemporaryFile(temporaryPath);
+            }
+        }
+    }
+
+    private static void DeleteTemporaryFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // An inaccessible attempt-owned file must not mask the original error or prevent Retry.
+            // Its unique name cannot be mistaken for the final database by a later attempt.
         }
     }
 
