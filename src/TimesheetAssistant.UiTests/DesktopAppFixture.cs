@@ -23,6 +23,9 @@ public sealed class DesktopAppFixture : IAsyncLifetime
     private bool failureCaptured;
     private string? lastProcessDiagnosticError;
     private string stage = "configuration";
+    private readonly string? _dataDirectory;
+    private readonly string? _executable;
+    private bool _disposed;
 
     private static string FindRepositoryRoot()
     {
@@ -77,9 +80,14 @@ public sealed class DesktopAppFixture : IAsyncLifetime
 
     public DesktopAppFixture() : this(new DesktopTimeouts()) { }
     internal DesktopAppFixture(DesktopTimeouts timeouts) => this.timeouts = timeouts;
+    internal DesktopAppFixture(string dataDirectory, string? executable = null) : this(new DesktopTimeouts())
+    {
+        _dataDirectory = dataDirectory;
+        _executable = executable;
+    }
     public IPage Page { get; private set; } = null!;
     public string ProfileDirectory => Path.Combine(sessionDirectory, "webview2");
-    public string DataDirectory => Path.Combine(sessionDirectory, "data");
+    public string DataDirectory => _dataDirectory ?? Path.Combine(sessionDirectory, "data");
     public int ProcessId => application!.Id;
     public float UiTimeoutMilliseconds => (float)timeouts.Ui.TotalMilliseconds;
 
@@ -98,7 +106,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
     {
         if (!OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException("Desktop UI tests require Windows and WebView2 Evergreen Runtime.");
-        var configuredPath = Environment.GetEnvironmentVariable("TIMESHEET_ASSISTANT_TEST_APP");
+        var configuredPath = _executable ?? Environment.GetEnvironmentVariable("TIMESHEET_ASSISTANT_TEST_APP");
         if (string.IsNullOrWhiteSpace(configuredPath))
             throw new InvalidOperationException("Set TIMESHEET_ASSISTANT_TEST_APP to the published Release TimesheetAssistant.exe.");
         var executable = Path.GetFullPath(configuredPath);
@@ -116,7 +124,11 @@ public sealed class DesktopAppFixture : IAsyncLifetime
         {
             RecordStage($"launch; executable={executable}; endpoint={endpoint}");
             Directory.CreateDirectory(ProfileDirectory);
-            Directory.CreateDirectory(DataDirectory);
+            // Scenario-owned data is prepared by its owner, including intentionally invalid overrides.
+            if (_dataDirectory is null)
+            {
+                Directory.CreateDirectory(DataDirectory);
+            }
             job = new OwnedProcessJob();
             var procdump = Environment.GetEnvironmentVariable("TIMESHEET_ASSISTANT_NATIVE_PROCDUMP");
             if (!string.IsNullOrWhiteSpace(procdump) && !string.IsNullOrWhiteSpace(nativePrivateRoot))
@@ -275,6 +287,10 @@ public sealed class DesktopAppFixture : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
         // Once the job is terminated, page diagnostics cannot be recovered.
         if (!failureCaptured) await SaveScreenshotAsync("cleanup.png");
         await StopTraceAsync(save: true);
@@ -284,6 +300,7 @@ public sealed class DesktopAppFixture : IAsyncLifetime
             RecordStage($"cleanup failed: {error}");
             throw;
         }
+        _disposed = true;
         if (!failureCaptured)
         {
             try

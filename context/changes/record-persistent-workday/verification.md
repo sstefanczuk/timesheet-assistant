@@ -121,7 +121,7 @@ test is intentionally superseded and was not run against this UI; phase 4
 must replace it with the planned isolated product scenarios. No phase 4 or CI
 work was performed, and no phase 3 commit was created before manual confirmation.
 
-2026-11-14: Author confirmed "wszystko działa jak trzeba" after the requested
+2026-11-14: Author confirmed that everything worked as expected after the requested
 manual verification using `artifacts/publish-0.1.0-preview.111303/TimesheetAssistant.exe`.
 This closes manual criterion 3.2 (English UI, keyboard use, field errors,
 remaining/excess and discard/delete cancellation). The earlier sandboxed launch
@@ -129,3 +129,119 @@ did not show a visible window; relaunch outside the sandbox produced a titled
 application window, and the author subsequently completed verification.
 The final staged whitespace check passed after removing the extra EOF blank line.
 Phase 4 automated persistence/failure scenarios and final acceptance remain pending.
+
+## Phase 4: Real Desktop Verification and Delivery Evidence
+
+Date: 2026-11-14. Source: uncommitted phase 4 changes based on
+`5622cbd00bd258b509353493eac5c57356708c4a`. The package is a working-tree
+verification build, not an exact committed revision or a release. Production
+behavior is unchanged in this phase. Environment: Windows x64 developer machine,
+.NET SDK 10.0.403 and the existing MAUI Windows/WebView2 installation.
+
+Implementation mode: the selected subagent returned without edits because its
+session exposed no filesystem/shell tools. The parent completed the same scope.
+The roadmap already listed S-01 as in-progress. No lessons.md exists.
+
+### Build, package and audit
+
+- `dotnet build TimesheetAssistant.sln -c Release`: exit 0, 0 warnings/errors.
+- `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release --no-restore`:
+  87 executed/passed, 0 failed/skipped, before packaging. UnitTests remains pure.
+- Initial package attempt `0.1.0-preview.111401` failed before publication because
+  the sandbox denied access to the user Windows SDK directory. Its unused output
+  directories were left in ignored artifacts; no successful package is claimed.
+- `./scripts/Package-Windows.ps1 -Version 0.1.0-preview.111402 -Commit 5622cbd00bd258b509353493eac5c57356708c4a -BuildNumber 1114`:
+  succeeded with required SDK access. Fresh publication:
+  `artifacts/publish-0.1.0-preview.111402/TimesheetAssistant.exe`.
+  ZIP: `artifacts/release-0.1.0-preview.111402/TimesheetAssistant-0.1.0-preview.111402-win-x64.zip`.
+  SHA-256: `7e2762a3cd1d8bd32604e2845401b6957257fe0b41bea1a85412b289462a3b65`.
+  The generated Commit field names the base revision; this record explicitly
+  identifies its uncommitted working-tree provenance. No release was published.
+- `dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json`:
+  exit 0, no vulnerable packages reported across all four projects. The initial
+  sandbox invocation was denied SDK access; the authorized invocation passed.
+  UiTests uses the same pinned Microsoft.Data.Sqlite 10.0.11 solely for isolated
+  failure preparation, not normal entry creation or UnitTests.
+
+### Real desktop results
+
+The runner temporarily set TIMESHEET_ASSISTANT_TEST_APP to the absolute EXE above
+and TIMESHEET_ASSISTANT_DATA_DIRECTORY to deliberately-invalid-inherited-override.
+Each launched child received its own scenario directory instead. Both caller
+variables were restored in finally. Native diagnostic capture was not enabled.
+
+- Initial `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --no-build --logger 'trx;LogFileName=s01-phase4-111402.trx'`:
+  9 executed, 8 passed, 1 failed, 0 skipped. The failed-update assertion used
+  Playwright's default five-second expectation, racing the provider's five-second
+  busy wait. Corrected only this expectation to the existing 15-second UI budget;
+  retained all failure/data/input assertions.
+- Corrected `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --no-restore --logger 'trx;LogFileName=s01-phase4-111402-retry1.trx'`:
+  exit 0; TRX total/executed/passed 9, failed/skipped 0; duration 1m24s.
+  TRX: `artifacts/desktop-ui/s01-phase4-111402-retry1.trx`.
+  Recorded run interval: 2026-11-14 13:26:02–13:27:28 Europe/Warsaw.
+- Inspected all 18 launch logs created in that interval: every log contains both
+  cleanup completed and scenario cleanup completed. Each logged profile and
+  domain path was absent after completion. Example session logs:
+  `artifacts/desktop-ui/0b9031656b2e459dab2f3e4758875abc/desktop.log` and
+  `artifacts/desktop-ui/ea166922cc6a41a082302bb8d76e13d1/desktop.log`.
+
+The nine cases (including two theory rows) prove through the published EXE:
+
+- Exact separate ticket rows, 0/60/432/433/434-minute totals, edited duration,
+  delete Cancel and confirmed Delete, validation and cancelled dirty-form context
+  changes. Normal work records are created only through UI.
+- Three launches with fresh profiles retain exact contents, identity/order, a
+  saved edit, absence of deleted entries and a separate earlier Saturday. A second
+  restart preserves a further edit/delete; no reliance on the starter smoke.
+- Independent domain directory starts empty while the original retains records;
+  concurrent access has a visible ownership message without an editor; a later
+  launch reacquires the released directory. A complete copy of the published app
+  launches from a different directory and reads the same scenario data.
+- Relative override fails visibly; corrupt and future-schema databases retain
+  their original bytes; a temporarily unreadable DB recovers via Retry after its
+  exclusive test handle is released. A blocked first-start lease creates no final
+  database; releasing it and Retry permits save/restart/read. This lease probe
+  exercises safe first-start recovery, not every possible mid-schema I/O fault.
+- A test-owned SQLite write transaction forces an update to fail within the UI
+  budget: no success status, input retained, committed row/totals unchanged;
+  restart shows the old values and a subsequent normal update succeeds.
+
+### Deliberate-break and final gates
+
+After staging the intended paths, temporarily changed the production SQL read
+from ORDER BY creation_order to ORDER BY creation_order DESC in the worktree only.
+Published this mutant separately to ignored artifacts/break-check-111499. The
+single targeted persistence test failed on its first post-restart expected row:
+expected T-1, actual KEEP-1. TRX executed 1, failed 1. The finally block restored
+SqliteWorkEntryStore.cs from staging and restored the caller EXE variable.
+`git diff --exit-code -- src/TimesheetAssistant/Features/Workdays/SqliteWorkEntryStore.cs`
+confirmed no mutant remained. No production source change is included in phase 4.
+
+- Negative TRX: `artifacts/desktop-ui/s01-break-order.trx`.
+- Failure screenshot/trace/log:
+  `artifacts/desktop-ui/f9e0cccbfe784f299a194feda81a819c/`.
+  Both mutant launch sessions completed cleanup. No intentional mutation is staged.
+- Positive replay against the original correct package passed 1/1 with exit 0:
+  artifacts/desktop-ui/s01-order-restored.trx. This targeted replay followed the
+  negative ordering test and source restoration.
+- Final restored `dotnet build TimesheetAssistant.sln -c Release --no-restore`
+  passed with 0 warnings/errors, and UnitTests --no-build --no-restore passed 87/87.
+
+- Final git diff --check and git diff --cached --check passed. Reviewed the
+  staged path list: no databases, artifacts, credentials or Visual Studio state
+  are included. The ZIP hash was recalculated and matches its sidecar.
+
+### Acceptance limits
+
+2026-11-14: The author confirmed that package 0.1.0-preview.111402 works as
+expected after the requested manual checks. They explicitly confirmed that
+launching from a different application location loads the database correctly and
+displays the previously saved entries. This closes manual criterion 4.5 and,
+together with the automated evidence above, establishes local phase 4 acceptance.
+Implementation review/triage remains required before merging; the earlier phase 3
+caption observation remains separately pending.
+
+Desktop CI F-01, clean-device compatibility, the remaining slices and full MVP
+acceptance are unchanged and incomplete. No push, hosted run, tag, release or
+publication-setting change was performed. Delivery text now describes persistent
+workday recording; the active workflow changes unit-test wording only.

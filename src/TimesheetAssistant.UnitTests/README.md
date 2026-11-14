@@ -22,3 +22,6 @@ least one executed test; pure unit tests cannot satisfy that desktop gate. See
 Main currently retains build/package/release without that desktop gate; keep
 running UiTests locally after packaging. A green main build does not establish
 desktop CI acceptance.
+
+S-01 real SQLite failure preparation and persistence/restart assertions are confined
+to UiTests. This project remains independent of the native provider and disk.

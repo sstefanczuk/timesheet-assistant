@@ -30,3 +30,9 @@ S-01 from roadmap v3. Complexity MEDIUM and seven design questions confirmed by 
 2026-11-14: Author confirmed that everything works as expected after manually checking publication 0.1.0-preview.111303. Manual criterion 3.2 is complete. Phase 3 awaits its commit; phase 4 remains pending. Status returned to implementing because the earlier review covered phase 2, not the new phase 3 implementation.
 
 2026-11-14: Phase 3 committed as e47608c and reviewed by two parallel agents. Review verdict APPROVED with one low-impact observation about culture-dependent date text in the table caption; triage pending. Release build passed with 0 warnings/errors and all 87 pure tests passed again. Report: reviews/impl-review-phase-3.md. Phase 4 remains pending; this review does not establish persistence/failure or CI acceptance.
+
+2026-11-14: Phase 4 implementation started. User selected delegation; the subagent had no filesystem/shell tools and returned without edits. The parent continued the approved scope. Automated desktop and final author acceptance remain pending.
+
+2026-11-14: Phase 4 automated desktop verification passed 9/9 against working-tree package 0.1.0-preview.111402; 87 pure tests and Release build passed. A deliberate ordering mutation was caught and restored. All 18 passing-run launch sessions and scenario data cleaned up. Manual criterion 4.5 and final review/triage remain pending; no local S-01/CI/full-MVP acceptance is claimed. See verification.md.
+
+2026-11-14: The author confirmed that package 0.1.0-preview.111402 works as expected, explicitly including loading the same database and previously saved entries after launching from another application location. Manual criterion 4.5 is complete. All plan criteria are now checked; the phase 4 commit and final implementation review/triage remain pending. Desktop CI, clean-device and full-MVP acceptance remain outside this confirmation.

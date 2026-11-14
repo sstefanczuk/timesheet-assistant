@@ -34,7 +34,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $publish 'TimesheetAssistant.exe')))
 Timesheet Assistant $Version
 Commit: $Commit
 
-Technical preview of the starter; time entries and persistence are not implemented.
+Technical preview with workday recording, editing, deletion and local SQLite storage.
 Target: Windows 11 x64. Unsigned application.
 Extract the entire ZIP into its own directory and run TimesheetAssistant.exe.
 Keep all files together. No SDK, Visual Studio, .NET or Windows App SDK installation
@@ -44,7 +44,9 @@ https://developer.microsoft.com/microsoft-edge/webview2/
 Clean-machine compatibility has not been verified. Developer-machine launch checks
 are recorded separately in the deployment plan. SmartScreen or device policy may
 warn about or block unsigned downloads. This preview has no automatic updater.
-Home, Counter and Weather are sample pages, not product features.
+Saved entries are stored in %LOCALAPPDATA%\TimesheetAssistant, outside this folder.
+Save before closing; unsaved drafts are not recovered. Summaries and integrations
+are not implemented. Local verification does not establish desktop CI acceptance.
 "@ | Set-Content -LiteralPath (Join-Path $publish 'README.txt') -Encoding utf8
 
 $zip = Join-Path $release "TimesheetAssistant-$Version-win-x64.zip"
@@ -55,16 +57,16 @@ $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant
 @"
 # Timesheet Assistant $Version
 
-Technical prerelease of the Windows MAUI Blazor starter, not the functional MVP.
+Technical prerelease with persistent workday recording; the full MVP is incomplete.
 
 - Commit: $Commit
 - Application download: TimesheetAssistant-$Version-win-x64.zip
 - Windows 11 x64; unsigned; WebView2 Evergreen Runtime required.
 - Extract the full ZIP and run TimesheetAssistant.exe; see README.txt inside.
 - The automatic source archives are not runnable application downloads.
-- No time-entry storage, cloud backend, updater or clean-machine verification.
-- A successful build or empty xUnit run is not functional verification.
-- First publication requires a recorded manual launch check on the developer PC.
+- Local SQLite storage; no cloud backend, updater or clean-machine verification.
+- Pure rule tests run before packaging. Desktop CI acceptance remains deferred.
+- Local desktop and author acceptance evidence is recorded separately for each change.
 
 SHA-256: $hash
 "@ | Set-Content -LiteralPath (Join-Path $release 'release-notes.md') -Encoding utf8

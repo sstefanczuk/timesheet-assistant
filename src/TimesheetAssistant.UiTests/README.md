@@ -5,38 +5,40 @@ WebView2 Evergreen Runtime. Tests launch the real unpackaged Release EXE. No MAU
 project reference, web server or separate Chromium installation is needed.
 Missing configuration or EXE fails rather than skips the suite.
 
-From the repository root, publish to a fresh ignored directory using the release
-script's deployment properties, without generating a release:
+From the repository root, build Release and run the pure UnitTests project before
+packaging with `scripts/Package-Windows.ps1`. Set the absolute published EXE only
+for the desktop test runner, restoring the caller environment afterward:
 
 ```powershell
-$publish = Join-Path (Get-Location) ("artifacts/desktop-ui/local-" + [Guid]::NewGuid().ToString('N'))
-dotnet publish src/TimesheetAssistant/TimesheetAssistant.csproj -f net10.0-windows10.0.19041.0 -c Release -p:RuntimeIdentifierOverride=win-x64 -p:WindowsPackageType=None -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -o $publish
-if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
-$env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path $publish 'TimesheetAssistant.exe'
-dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx
-Remove-Item Env:TIMESHEET_ASSISTANT_TEST_APP
+$previous = $env:TIMESHEET_ASSISTANT_TEST_APP
+try {
+    $env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path (Get-Location) 'artifacts/publish-<version>/TimesheetAssistant.exe'
+    dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --logger trx
+    if ($LASTEXITCODE -ne 0) { throw 'Desktop verification failed.' }
+}
+finally {
+    $env:TIMESHEET_ASSISTANT_TEST_APP = $previous
+}
 ```
 
-An existing package's EXE can also be assigned directly. Only the launched child
-receives the unique `WEBVIEW2_USER_DATA_FOLDER` and loopback CDP arguments. The
-child-only `TIMESHEET_ASSISTANT_DATA_DIRECTORY` always overrides any inherited
-value with the session's unique absolute `data` directory, separate from the
-`webview2` profile. The configuration stage logs this path without record content.
-The session root is checked as a test-owned GUID directory before recursive
-cleanup; redirected session roots are rejected. Domain data is removed with the
-session only after owned processes exit. A
-private Windows job verifies the listener belongs to the launched process tree
-before Playwright connects. The EXE is created suspended, assigned to that job,
-then resumed so every WebView2 child starts inside the job. Assignment or resume
-failure terminates the suspended process. Port collisions fail startup. Cleanup terminates only
-that job and removes its unique temporary session directory after processes exit.
-Independent WebView2 sessions are never selected by executable name. Test output
-records the application PID and profile path for cleanup verification.
+Each test creates its own `DesktopScenario`, with a unique GUID root beneath
+`%TEMP%/TimesheetAssistant.UiScenarios`. Its domain `data` directory survives all
+launches in that scenario. Every launch has a separate fixture and fresh WebView2
+profile under `%TEMP%/TimesheetAssistant.UiTests`; disposing a launch stops only
+its owned process job and removes only that session. The scenario removes its
+validated GUID root only after all launches have cleaned up successfully. Cleanup
+rejects redirected directories and retains data when process cleanup fails.
+Original failures are preserved alongside cleanup failures.
 
-`DesktopTimeouts` centralizes startup (60 s), UI (15 s) and cleanup (15 s) budgets.
-Controlled probes can instantiate the fixture with a custom options record.
-Desktop tests do not share an instance in parallel. No global environment or
-normal application debug setting changes.
+Only the launched child receives `TIMESHEET_ASSISTANT_DATA_DIRECTORY`,
+`WEBVIEW2_USER_DATA_FOLDER` and loopback CDP arguments. Any caller data override is
+replaced. The invalid-configuration scenario deliberately supplies a relative
+child override. Logs identify domain/profile paths and launch stages without
+record content; screenshots and traces use synthetic test records only.
+A private Windows job verifies listener ownership. The EXE starts suspended,
+is assigned to that job, then resumes; no global debug settings change.
+`DesktopTimeouts` bounds startup (60 s), UI (15 s) and cleanup (15 s).
+The Desktop collection runs scenarios sequentially, without shared class fixtures.
 
 CDP readiness polls only the owned loopback `/json/version/` endpoint with an
 HTTP client that disables proxies and redirects. Each request has at most two
@@ -55,11 +57,16 @@ token are checked before resume. Failure to create or validate that token fails
 startup and cleans up the owned child. Standard local launches retain their
 existing process-creation path. No machine policy or registry settings change.
 
-The single desktop smoke test recognizes Home, opens a collapsed navigation menu,
-follows Counter, checks `Current count: 0`, clicks `Click me` and checks
-`Current count: 1`. Locators use roles and accessible names where provided. The
-status has no accessible name, so its text is asserted. Playwright waits within
-the UI budget without fixed UI sleeps. Run twice to check independent profiles.
+The Workdays tests replace the historical Counter smoke. They assert exact rows,
+identity/order, duplicate tickets, totals, validation and cancelled discard/delete;
+three launches retain committed adds, edits and deletions on two dates including
+a weekend. Other scenarios cover independent stores, second-process exclusion,
+reacquisition, an entire copied app directory, invalid configuration, corrupt and
+future databases, an unreadable file followed by Retry, first-start lease failure
+followed by Retry, and failed update under a test-owned SQLite transaction.
+Only failure fixtures use direct database preparation; ordinary entries are saved
+through the visible UI. Native SQLite is a UiTests dependency for bounded failure
+setup, never a UnitTests dependency.
 
 `desktop.runsettings` routes `--logger trx` results to the ignored repository
 `artifacts/desktop-ui/` directory. Each fixture creates a unique subdirectory
@@ -82,22 +89,13 @@ These temporary diagnostics are deleted only after the entire cleanup succeeds;
 a cleanup failure retains them and logs its exception. Test-failure artifacts are
 retained even when cleanup succeeds.
 
-To check failure diagnostics, temporarily change the final expected status to
-`Current count: 2`, run the test, and restore the assertion in a `finally` block.
-Expect a failed TRX, screenshot, trace, stage log and completed cleanup. Never
-commit the deliberately failing assertion. From this project directory, inspect
-a retained trace with:
-
-```powershell
-pwsh bin/Debug/net10.0-windows/playwright.ps1 show-trace <path-to-trace.zip>
-```
-
-Counter is temporary: S-01 replaces this scenario with work-entry tests, retaining
-the fixture and adding scenario-owned domain storage with explicit restart/read checks.
-The current single-launch fixture already isolates domain data, but does not retain
-it across session cleanup; phase 4 must add that independent scenario lifetime.
-A WebView2 profile is not domain-storage isolation. This smoke test proves no
-work-entry persistence.
+For a deliberate-break check, stage the intended files, temporarily break the
+production ordering/query or mutation behavior, publish to a separate ignored
+folder and run the targeted persistence test. Restore production source from
+staging in a finally block. Require a failing assertion, original failure evidence
+and successful cleanup; never commit the mutation. Local acceptance also requires
+the author's manual save/reopen/edit/delete/alternate-folder confirmation for the
+identified package. Test success alone does not satisfy that manual criterion.
 
 ## Deferred CI release gate
 

@@ -169,7 +169,7 @@ gate. The workflow behavior below describes the candidate used in experiments;
 it is not active on main. A green main build does not establish desktop CI
 acceptance. Local desktop verification remains required.
 
-Current implementation as of 2026-11-08 supersedes the historical empty-test
+Historical implementation as of 2026-11-08 superseded the original empty-test
 description above. UnitTests remains empty and reserved for pure logic. UiTests
 now launches the real unpackaged Release EXE, connects Playwright .NET to its
 WebView2, and exercises Home → Counter → count 0 to 1. The author confirmed the
@@ -337,3 +337,16 @@ place; any future push must account for automatic technical prereleases without
 a desktop gate. Those previews must not be described as desktop-CI-verified or
 as an accepted MVP. Product work continues to require local logic and real
 desktop checks; S-01 must cover isolated storage and save/restart/read behavior.
+
+### S-01 phase 4 implementation — 2026-11-14
+
+The historical starter/Counter evidence above remains unchanged. The current
+source includes persistent workday recording and 87 pure Core tests using fake
+storage. New isolated real-desktop scenarios replace Counter and cover CRUD,
+restart/read, ordering, date isolation, ownership, alternate app folders and safe
+storage failures. Execution counts and the exact working-tree package identity
+are recorded in context/changes/record-persistent-workday/verification.md.
+Author confirmation and automated execution must both pass before local S-01
+acceptance. No new CI runs, push or release is part of this change; F-01 and
+clean-device compatibility remain pending. The active workflow changes only its
+misleading unit-test wording; existing build/package/release behavior is retained.

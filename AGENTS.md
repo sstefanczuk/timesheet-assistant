@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Timesheet Assistant is a Windows desktop application built with .NET 10 MAUI Blazor Hybrid, C#, Razor, and WebView2. The repository contains the starter application, an empty pure-logic xUnit project, and a real desktop UI smoke test.
+Timesheet Assistant is a Windows desktop application built with .NET 10 MAUI Blazor Hybrid, C#, Razor, and WebView2. The repository contains workday recording with SQLite persistence, a portable Core library, pure-logic xUnit tests and real desktop UI scenarios.
 
 ## Critical Rules
 
@@ -16,7 +16,7 @@ Timesheet Assistant is a Windows desktop application built with .NET 10 MAUI Bla
 Run commands from the repository root on Windows with the .NET 10 SDK and `maui-windows` workload installed.
 
 - `dotnet build TimesheetAssistant.sln` builds the application and both test projects.
-- `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj` runs pure-logic tests before packaging (currently empty).
+- `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj` runs pure-logic tests before packaging.
 - After publishing, set `TIMESHEET_ASSISTANT_TEST_APP` to the absolute path of the Release `TimesheetAssistant.exe`, then run `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx`. Windows and WebView2 Evergreen Runtime are required; see @src/TimesheetAssistant.UiTests/README.md for publication commands.
 - `dotnet list TimesheetAssistant.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json` audits direct and transitive dependencies.
 
@@ -30,9 +30,9 @@ Use @context/foundation/prd.md for product scope and @context/foundation/tech-st
 
 ## Tests and Delivery
 
-@src/TimesheetAssistant.UnitTests/README.md and @src/TimesheetAssistant.UiTests/README.md record the current test setup. Playwright .NET launches the real Release application and connects to its WebView2 for the temporary Home → Counter → 0 to 1 smoke test. It does not verify work-entry persistence or clean-device compatibility. See @context/deployment/deploy-plan.md for release gates and the pending CI evidence.
+@src/TimesheetAssistant.UnitTests/README.md and @src/TimesheetAssistant.UiTests/README.md record the current test setup. Playwright .NET launches the real Release application and connects to its WebView2 for isolated workday CRUD, restart, ownership and storage-failure scenarios. Current execution and author-acceptance evidence is recorded in context/changes/record-persistent-workday/verification.md; clean-device compatibility remains unverified. See @context/deployment/deploy-plan.md for release gates and the pending CI evidence.
 
-The implemented test architecture uses separate `TimesheetAssistant.UnitTests` (pure logic, without Playwright, WebView2, an EXE or real storage) and `TimesheetAssistant.UiTests` (real application workflows). S-01 must add explicit persistence/restart scenarios and domain-storage isolation. Do not introduce an IntegrationTests project. See @context/foundation/tech-stack.md.
+The implemented test architecture uses separate `TimesheetAssistant.UnitTests` (pure logic, without Playwright, WebView2, an EXE or real storage) and `TimesheetAssistant.UiTests` (real application workflows). S-01 includes explicit persistence/restart scenarios and scenario-owned domain-storage isolation; acceptance requires recorded successful execution and author confirmation. Do not introduce an IntegrationTests project. See @context/foundation/tech-stack.md.
 
 Run UnitTests before packaging and UiTests against `artifacts/publish-<version>/TimesheetAssistant.exe` after packaging. Separate suites by project paths, not category filters. `artifacts/desktop-ui/` holds TRX and per-session logs, plus screenshots/traces when available on failure. CDP and unique profiles apply only to the launched child, never global debug settings.
 
