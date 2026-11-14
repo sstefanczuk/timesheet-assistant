@@ -1,7 +1,7 @@
 ---
 change_id: record-persistent-workday
 title: Record persistent workday
-status: implementing
+status: impl_reviewed
 created: 2026-11-11
 updated: 2026-11-14
 archived_at: null
@@ -28,3 +28,5 @@ S-01 from roadmap v3. Complexity MEDIUM and seven design questions confirmed by 
 2026-11-13: Phase 3 implemented by the user-selected subagent: feature-owned workday screen, date selection, durable-service CRUD, totals, field errors and keyboard-operable discard/delete confirmations. Removed sample pages and About link; Workday navigation is static to avoid resetting drafts. Release build passed with 0 warnings/errors; pure tests passed 87/87. Manual criterion 3.2 remains pending, so phase 3 is not closed and phase 4 has not started. See verification.md for commands and local publication identity.
 
 2026-11-14: Author confirmed that everything works as expected after manually checking publication 0.1.0-preview.111303. Manual criterion 3.2 is complete. Phase 3 awaits its commit; phase 4 remains pending. Status returned to implementing because the earlier review covered phase 2, not the new phase 3 implementation.
+
+2026-11-14: Phase 3 committed as e47608c and reviewed by two parallel agents. Review verdict APPROVED with one low-impact observation about culture-dependent date text in the table caption; triage pending. Release build passed with 0 warnings/errors and all 87 pure tests passed again. Report: reviews/impl-review-phase-3.md. Phase 4 remains pending; this review does not establish persistence/failure or CI acceptance.

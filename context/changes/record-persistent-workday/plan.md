@@ -284,11 +284,11 @@ No domain store exists today, so v1 creates an empty database only when none exi
 
 #### Automated
 
-- [x] 3.1 Solution build and all pure tests pass after the workday UI replaces the starter.
+- [x] 3.1 Solution build and all pure tests pass after the workday UI replaces the starter. — e47608c
 
 #### Manual
 
-- [x] 3.2 Author confirms readable English date/form/list UI, keyboard operation, field errors, remaining/excess states and both discard/delete cancellation paths on the Windows app.
+- [x] 3.2 Author confirms readable English date/form/list UI, keyboard operation, field errors, remaining/excess states and both discard/delete cancellation paths on the Windows app. — e47608c
 
 ### Phase 4: Real Desktop Verification and Delivery Evidence
 
