@@ -1,7 +1,7 @@
 ---
 change_id: record-persistent-workday
 title: Record persistent workday
-status: impl_reviewed
+status: implemented
 created: 2026-11-11
 updated: 2026-11-14
 archived_at: null
@@ -36,3 +36,5 @@ S-01 from roadmap v3. Complexity MEDIUM and seven design questions confirmed by 
 2026-11-14: Phase 4 automated desktop verification passed 9/9 against working-tree package 0.1.0-preview.111402; 87 pure tests and Release build passed. A deliberate ordering mutation was caught and restored. All 18 passing-run launch sessions and scenario data cleaned up. Manual criterion 4.5 and final review/triage remain pending; no local S-01/CI/full-MVP acceptance is claimed. See verification.md.
 
 2026-11-14: The author confirmed that package 0.1.0-preview.111402 works as expected, explicitly including loading the same database and previously saved entries after launching from another application location. Manual criterion 4.5 is complete. All plan criteria are now checked; the phase 4 commit and final implementation review/triage remain pending. Desktop CI, clean-device and full-MVP acceptance remain outside this confirmation.
+
+2026-11-14: Phase 4 committed as b3a3a30. All four phases are implemented and verified, including author confirmation for package 0.1.0-preview.111402. Phase 4 SHA annotations and implemented status are recorded in the closing documentation commit. Final implementation review/triage remains required before merging; deferred desktop CI and full-MVP acceptance are unchanged.

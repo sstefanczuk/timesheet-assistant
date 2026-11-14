@@ -294,11 +294,11 @@ No domain store exists today, so v1 creates an empty database only when none exi
 
 #### Automated
 
-- [x] 4.1 Release build and UnitTests pass before packaging, with nonzero executed pure tests and no failures.
-- [x] 4.2 A fresh package is created and the UiTests project passes against its `artifacts/publish-<version>/TimesheetAssistant.exe`, with nonzero executed desktop tests and successful cleanup.
-- [x] 4.3 Desktop assertions prove CRUD persistence, date isolation, restart with fresh profiles, independent domain directories, second-process exclusion, alternate app-folder reads and safe storage-failure behavior.
-- [x] 4.4 Verification record and delivery text describe actual outcomes; `git diff --check` passes and no data, artifacts, credentials or Visual Studio state are tracked.
+- [x] 4.1 Release build and UnitTests pass before packaging, with nonzero executed pure tests and no failures. — b3a3a30
+- [x] 4.2 A fresh package is created and the UiTests project passes against its `artifacts/publish-<version>/TimesheetAssistant.exe`, with nonzero executed desktop tests and successful cleanup. — b3a3a30
+- [x] 4.3 Desktop assertions prove CRUD persistence, date isolation, restart with fresh profiles, independent domain directories, second-process exclusion, alternate app-folder reads and safe storage-failure behavior. — b3a3a30
+- [x] 4.4 Verification record and delivery text describe actual outcomes; `git diff --check` passes and no data, artifacts, credentials or Visual Studio state are tracked. — b3a3a30
 
 #### Manual
 
-- [x] 4.5 Author confirms the published Windows app's ordinary Save, close/reopen, edit/delete and launch from another app folder retain the expected records; confirmation and package identity are recorded.
+- [x] 4.5 Author confirms the published Windows app's ordinary Save, close/reopen, edit/delete and launch from another app folder retain the expected records; confirmation and package identity are recorded. — b3a3a30
