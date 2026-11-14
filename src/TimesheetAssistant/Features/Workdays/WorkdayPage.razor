@@ -1,0 +1,428 @@
+@page "/"
+@inject WorkdayService Service
+
+<PageTitle>Workday | Timesheet Assistant</PageTitle>
+
+<div inert="@(_confirmation is not null)">
+    <h1>Workday</h1>
+    <p>Record your work and track your daily target of 7h 12m.</p>
+
+    <div class="mb-3 date-picker">
+        <label for="work-date" class="form-label">Work date</label>
+        <input @key="_dateInputVersion" id="work-date" type="date" class="form-control" value="@DateText(_date)"
+               max="@DateText(Today)" @onchange="ChangeDateAsync" disabled="@_busy" aria-describedby="date-error" />
+        <div id="date-error" class="text-danger" role="alert">@_dateError</div>
+    </div>
+
+    @if (_busy)
+    {
+        <p role="status">@(_saving ? "Saving changes…" : "Loading entries…")</p>
+    }
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger" role="alert">@_error</div>
+    }
+    @if (_status is not null)
+    {
+        <p role="status" class="text-success">@_status</p>
+    }
+    @if (_snapshot is null)
+    {
+        @if (!_busy)
+        {
+            <button class="btn btn-primary" type="button" @onclick="() => LoadAsync(_date)">Retry loading entries</button>
+        }
+    }
+    else
+    {
+        <section aria-label="Daily totals" class="totals alert alert-light" aria-live="polite">
+            <span>Total: <strong>@DurationParser.Format(_snapshot.Totals.TotalMinutes)</strong></span>
+            @if (_snapshot.Totals.ExcessMinutes > 0)
+            {
+                <span class="text-danger">Excess: <strong>@DurationParser.Format(_snapshot.Totals.ExcessMinutes)</strong></span>
+            }
+            else
+            {
+                <span>Remaining: <strong>@DurationParser.Format(_snapshot.Totals.RemainingMinutes)</strong></span>
+            }
+        </section>
+
+        <section aria-labelledby="editor-title" class="mb-4">
+            <h2 id="editor-title">@(_editingId.HasValue ? "Edit entry" : "Add entry")</h2>
+            <form @onsubmit="SaveAsync" @onsubmit:preventDefault novalidate>
+                <fieldset disabled="@_busy">
+                    <div class="mb-3">
+                        <label for="jira-id" class="form-label">Jira ID</label>
+                        <input @ref="_jiraInput" id="jira-id" class="form-control" @bind="_jiraId" @bind:event="oninput"
+                               aria-required="true" aria-invalid="@(FieldError("JiraId") is not null ? "true" : "false")" aria-describedby="jira-error" />
+                        <div id="jira-error" class="text-danger" role="alert">@FieldError("JiraId")</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="item-title" class="form-label">Item title</label>
+                        <input id="item-title" class="form-control" @bind="_title" @bind:event="oninput"
+                               aria-required="true" aria-invalid="@(FieldError("Title") is not null ? "true" : "false")" aria-describedby="title-error" />
+                        <div id="title-error" class="text-danger" role="alert">@FieldError("Title")</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="work-description" class="form-label">Work description (optional)</label>
+                        <textarea id="work-description" class="form-control" rows="2" @bind="_description" @bind:event="oninput"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duration" class="form-label">Duration</label>
+                        <input id="duration" class="form-control" @bind="_duration" @bind:event="oninput"
+                               aria-required="true" aria-invalid="@(FieldError("Duration") is not null ? "true" : "false")" aria-describedby="duration-help duration-error" />
+                        <div id="duration-help" class="form-text">For example: 1h, 30m or 6h 12m. Enter 1 minute to 24 hours.</div>
+                        <div id="duration-error" class="text-danger" role="alert">@FieldError("Duration")</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CancelEditor">Cancel</button>
+                </fieldset>
+            </form>
+        </section>
+
+        <section aria-labelledby="entries-title">
+            <h2 id="entries-title">Saved entries</h2>
+            @if (_snapshot.Entries.Count == 0)
+            {
+                <p>No entries for this date. Add your first entry above.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <caption>Entries for @_date.ToString("D"), in creation order</caption>
+                        <thead><tr><th scope="col">Jira ID</th><th scope="col">Item title</th><th scope="col">Work description</th><th scope="col">Duration</th><th scope="col">Actions</th></tr></thead>
+                        <tbody>
+                            @foreach (var entry in _snapshot.Entries)
+                            {
+                                <tr @key="entry.Id" data-entry-id="@entry.Id">
+                                    <td>@entry.JiraId</td><td>@entry.Title</td><td class="description">@entry.Description</td><td class="duration">@DurationParser.Format(entry.DurationMinutes)</td>
+                                    <td class="entry-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" disabled="@_busy" @onclick="() => Edit(entry)">Edit</button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => RequestDelete(entry)">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@if (_confirmation is not null)
+{
+    <WorkdayConfirmation Title="@_confirmation.Title" Message="@_confirmation.Message" ConfirmText="@_confirmation.ConfirmText"
+                         Confirmed="ConfirmAsync" Cancelled="DismissConfirmation" />
+}
+
+@code {
+    private DateOnly _date = Today;
+    private WorkdaySnapshot? _snapshot;
+    private bool _busy;
+    private bool _saving;
+    private string? _error;
+    private string? _dateError;
+    private string? _status;
+    private Guid? _editingId;
+    private string _jiraId = string.Empty;
+    private string _title = string.Empty;
+    private string _description = string.Empty;
+    private string _duration = string.Empty;
+    private WorkEntryInput _original = new("", "", "", "");
+    private IReadOnlyDictionary<string, string>? _errors;
+    private Confirmation? _confirmation;
+    private ElementReference _jiraInput;
+    private bool _focusEditor;
+    private int _dateInputVersion;
+    private int _contextVersion;
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
+
+    private WorkEntryInput Input => new(_jiraId, _title, _description, _duration);
+
+    private bool IsDirty => Input != _original;
+
+    protected override Task OnInitializedAsync() => LoadAsync(_date);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusEditor && _snapshot is not null && !_busy && _confirmation is null)
+        {
+            _focusEditor = false;
+            await _jiraInput.FocusAsync();
+        }
+    }
+
+    private async Task LoadAsync(DateOnly date)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _error = null;
+        _status = null;
+        var version = ++_contextVersion;
+
+        try
+        {
+            var result = await Service.LoadAsync(date);
+
+            if (version != _contextVersion)
+            {
+                return;
+            }
+
+            if (result.IsSuccess)
+            {
+                _date = date;
+                _snapshot = Service.Snapshot;
+                _dateError = null;
+                ResetEditor();
+            }
+            else
+            {
+                ShowFailure(result, "load entries");
+            }
+        }
+        finally
+        {
+            _busy = false;
+            _dateInputVersion++;
+        }
+    }
+
+    private Task ChangeDateAsync(ChangeEventArgs args)
+    {
+        _dateInputVersion++;
+
+        if (_busy)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!DateOnly.TryParseExact(args.Value?.ToString(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var date))
+        {
+            _dateError = "Enter a valid work date.";
+
+            return Task.CompletedTask;
+        }
+
+        if (date > Today)
+        {
+            _dateError = "Work date cannot be in the future.";
+
+            return Task.CompletedTask;
+        }
+
+        if (date == _date)
+        {
+            _dateError = null;
+
+            return Task.CompletedTask;
+        }
+
+        return WithDiscardAsync(() => LoadAsync(date));
+    }
+
+    private Task Edit(WorkEntry entry)
+    {
+        if (_busy || _editingId == entry.Id)
+        {
+            return Task.CompletedTask;
+        }
+
+        return WithDiscardAsync(() =>
+        {
+            ResetEditor();
+            _editingId = entry.Id;
+            _jiraId = entry.JiraId;
+            _title = entry.Title;
+            _description = entry.Description;
+            _duration = DurationParser.Format(entry.DurationMinutes);
+            _original = Input;
+            _focusEditor = true;
+
+            return Task.CompletedTask;
+        });
+    }
+
+    private Task CancelEditor() => WithDiscardAsync(() =>
+    {
+        ResetEditor();
+        _focusEditor = true;
+
+        return Task.CompletedTask;
+    });
+
+    private Task WithDiscardAsync(Func<Task> action)
+    {
+        if (_busy || _confirmation is not null)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (IsDirty)
+        {
+            _confirmation = new Confirmation("Discard unsaved changes?", "Your unsaved input will be discarded.", "Discard changes", action);
+
+            return Task.CompletedTask;
+        }
+
+        return action();
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_busy || _snapshot is null || _confirmation is not null)
+        {
+            return;
+        }
+
+        var date = _date;
+        var id = _editingId;
+        var input = Input;
+        var version = _contextVersion;
+        _busy = true;
+        _saving = true;
+        _error = null;
+        _status = null;
+        _errors = null;
+
+        try
+        {
+            var result = id.HasValue
+                ? await Service.UpdateAsync(id.Value, date, input)
+                : await Service.AddAsync(date, input);
+
+            if (version != _contextVersion || _date != date || _editingId != id)
+            {
+                return;
+            }
+
+            if (result.IsSuccess)
+            {
+                _snapshot = Service.Snapshot;
+                ResetEditor();
+                _status = id.HasValue ? "Entry updated." : "Entry saved.";
+                _focusEditor = true;
+            }
+            else
+            {
+                ShowFailure(result, "save this entry");
+            }
+        }
+        finally
+        {
+            _saving = false;
+            _busy = false;
+        }
+    }
+
+    private void RequestDelete(WorkEntry entry)
+    {
+        if (_busy || _confirmation is not null)
+        {
+            return;
+        }
+
+        var date = _date;
+        var version = _contextVersion;
+        var draftWarning = _editingId == entry.Id && IsDirty ? " Unsaved changes to this entry will also be discarded." : string.Empty;
+        _confirmation = new Confirmation("Delete entry?",
+            $"Delete {entry.JiraId} ({DurationParser.Format(entry.DurationMinutes)})? This cannot be undone.{draftWarning}",
+            "Delete", () => DeleteAsync(entry.Id, date, version));
+    }
+
+    private async Task DeleteAsync(Guid id, DateOnly date, int version)
+    {
+        _busy = true;
+        _saving = true;
+        _error = null;
+        _status = null;
+
+        try
+        {
+            var result = await Service.DeleteAsync(id, date);
+
+            if (version != _contextVersion || date != _date)
+            {
+                return;
+            }
+
+            if (result.IsSuccess)
+            {
+                _snapshot = Service.Snapshot;
+
+                if (_editingId == id)
+                {
+                    ResetEditor();
+                }
+
+                _status = "Entry deleted.";
+            }
+            else
+            {
+                ShowFailure(result, "delete this entry");
+            }
+        }
+        finally
+        {
+            _saving = false;
+            _busy = false;
+            _focusEditor = true;
+        }
+    }
+
+    private async Task ConfirmAsync()
+    {
+        var action = _confirmation?.Action;
+        _confirmation = null;
+
+        if (action is not null)
+        {
+            await action();
+        }
+    }
+
+    private void DismissConfirmation()
+    {
+        _confirmation = null;
+        _focusEditor = true;
+    }
+
+    private void ResetEditor()
+    {
+        _editingId = null;
+        _jiraId = string.Empty;
+        _title = string.Empty;
+        _description = string.Empty;
+        _duration = string.Empty;
+        _original = Input;
+        _errors = null;
+        _status = null;
+        _error = null;
+    }
+
+    private void ShowFailure(WorkdayResult result, string operation)
+    {
+        _errors = result.Errors;
+        _dateError = FieldError("WorkDate");
+        _error = result.FailureReason switch
+        {
+            WorkdayFailure.Validation => "Check the highlighted fields and try again.",
+            WorkdayFailure.NotFound => "This entry could not be found. Your input has been kept. Select another date and return to reload saved entries.",
+            _ => $"Could not {operation}. Check local storage access and try again. Your input and previously loaded entries have been kept."
+        };
+    }
+
+    private string? FieldError(string field) => _errors is not null && _errors.TryGetValue(field, out var error) ? error : null;
+
+    private static string DateText(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    private sealed record Confirmation(string Title, string Message, string ConfirmText, Func<Task> Action);
+}

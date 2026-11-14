@@ -91,3 +91,41 @@ protection or second-process exclusion. Those remain phase 4 desktop scenarios.
 The single-launch data directory is removed with its session; phase 4 still needs
 an independent scenario lifetime. Both findings are fixed in code; no S-01 local
 acceptance, clean-device or desktop CI acceptance is claimed.
+
+## Phase 3: Workday Recording Screen
+
+Date: 2026-11-13. Source: uncommitted phase 3 changes based on `cad8254`.
+Environment: Windows x64, .NET SDK 10.0.403, workload set 10.0.402.1,
+maui-windows 10.0.110/10.0.100. Implementation was delegated as selected by the user.
+
+- `dotnet build TimesheetAssistant.sln -c Release`: passed, 0 warnings/errors.
+- `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release`:
+  blocked before execution by sandbox denial reading the user NuGet.Config.
+  Reused the successful build's restored dependencies with the same command plus
+  `--no-restore`: 87 passed, 0 failed, 0 skipped.
+- No tests were added or modified in phase 3; deliberate-break verification is
+  inapplicable. Pure tests cover existing Core rules, not Razor interaction.
+- `git diff --cached --check`: identified an extra blank line at the end of the
+  new confirmation component; removed that whitespace before the final check.
+- Fresh local publication:
+  `dotnet publish src/TimesheetAssistant/TimesheetAssistant.csproj -f net10.0-windows10.0.19041.0 -c Release -p:RuntimeIdentifierOverride=win-x64 -p:WindowsPackageType=None -p:SelfContained=true -p:WindowsAppSDKSelfContained=true -p:Version=0.1.0-preview.111303 -p:ApplicationVersion=1113 -o artifacts/publish-0.1.0-preview.111303`:
+  passed. The initial sandboxed invocation could not access the user SDK directory;
+  the invocation with the required access succeeded. This is a working-tree
+  publication for manual phase 3 verification, without a release or ZIP.
+
+Manual criterion 3.2 is pending author confirmation: readable English date,
+form and list UI; keyboard operation; field errors; remaining/excess states;
+discard and delete cancellation paths. No desktop interaction or persistence
+acceptance is claimed from compilation/publication. The old Counter desktop
+test is intentionally superseded and was not run against this UI; phase 4
+must replace it with the planned isolated product scenarios. No phase 4 or CI
+work was performed, and no phase 3 commit was created before manual confirmation.
+
+2026-11-14: Author confirmed "wszystko działa jak trzeba" after the requested
+manual verification using `artifacts/publish-0.1.0-preview.111303/TimesheetAssistant.exe`.
+This closes manual criterion 3.2 (English UI, keyboard use, field errors,
+remaining/excess and discard/delete cancellation). The earlier sandboxed launch
+did not show a visible window; relaunch outside the sandbox produced a titled
+application window, and the author subsequently completed verification.
+The final staged whitespace check passed after removing the extra EOF blank line.
+Phase 4 automated persistence/failure scenarios and final acceptance remain pending.

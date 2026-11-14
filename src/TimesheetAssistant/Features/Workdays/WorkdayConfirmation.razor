@@ -1,0 +1,52 @@
+<div class="confirmation-backdrop">
+    <section role="alertdialog" aria-modal="true" aria-labelledby="confirmation-title" aria-describedby="confirmation-message"
+             class="confirmation card shadow" @onkeydown="HandleKeyAsync" @onkeydown:preventDefault>
+        <div class="card-body">
+            <h2 id="confirmation-title" class="h4">@Title</h2>
+            <p id="confirmation-message">@Message</p>
+            <button @ref="_cancel" type="button" class="btn btn-outline-secondary" @onclick="Cancelled" @onfocus="() => _confirmFocused = false">Cancel</button>
+            <button @ref="_confirm" type="button" class="btn btn-danger ms-2" @onclick="Confirmed" @onfocus="() => _confirmFocused = true">@ConfirmText</button>
+        </div>
+    </section>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired] public string Message { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired] public string ConfirmText { get; set; } = string.Empty;
+
+    [Parameter] public EventCallback Confirmed { get; set; }
+
+    [Parameter] public EventCallback Cancelled { get; set; }
+
+    private ElementReference _cancel;
+    private ElementReference _confirm;
+    private bool _confirmFocused;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _cancel.FocusAsync();
+        }
+    }
+
+    private async Task HandleKeyAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            await Cancelled.InvokeAsync();
+        }
+        else if (args.Key is "Tab" or "ArrowLeft" or "ArrowRight")
+        {
+            _confirmFocused = !_confirmFocused;
+            await (_confirmFocused ? _confirm : _cancel).FocusAsync();
+        }
+        else if (args.Key is "Enter" or " ")
+        {
+            await (_confirmFocused ? Confirmed : Cancelled).InvokeAsync();
+        }
+    }
+}

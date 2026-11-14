@@ -1,0 +1,8 @@
+.date-picker { max-width: 18rem; }
+.totals { display: flex; flex-wrap: wrap; gap: 1rem 2rem; }
+fieldset { max-width: 42rem; }
+.description { white-space: pre-wrap; overflow-wrap: anywhere; }
+td, th { overflow-wrap: anywhere; }
+.duration { white-space: nowrap; }
+.entry-actions { min-width: 9rem; }
+.entry-actions button { margin: .15rem; }

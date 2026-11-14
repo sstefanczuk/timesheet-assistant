@@ -1,9 +1,9 @@
 ---
 change_id: record-persistent-workday
 title: Record persistent workday
-status: impl_reviewed
+status: implementing
 created: 2026-11-11
-updated: 2026-11-13
+updated: 2026-11-14
 archived_at: null
 ---
 
@@ -24,3 +24,7 @@ S-01 from roadmap v3. Complexity MEDIUM and seven design questions confirmed by 
 2026-11-13: User approved F2. The current desktop fixture now always supplies a unique child-only domain directory, separate from its WebView2 profile, and validates its test-owned session root before cleanup after process exit. Both phase 2 review findings are fixed in the working tree. Full scenario-owned restart persistence remains phase 4 scope.
 
 2026-11-13: F1/F2 verification passed: Release build with 0 warnings/errors, 87 pure tests and 1 real desktop smoke against fresh working-tree publication publish-0.1.0-preview.111301. The caller's deliberately invalid data override was replaced for the child; its logged test-owned domain directory was removed after successful cleanup. See verification.md for TRX and session log identity. This is starter smoke/startup-isolation evidence, not product CRUD/restart or induced-initialization-failure acceptance.
+
+2026-11-13: Phase 3 implemented by the user-selected subagent: feature-owned workday screen, date selection, durable-service CRUD, totals, field errors and keyboard-operable discard/delete confirmations. Removed sample pages and About link; Workday navigation is static to avoid resetting drafts. Release build passed with 0 warnings/errors; pure tests passed 87/87. Manual criterion 3.2 remains pending, so phase 3 is not closed and phase 4 has not started. See verification.md for commands and local publication identity.
+
+2026-11-14: Author confirmed that everything works as expected after manually checking publication 0.1.0-preview.111303. Manual criterion 3.2 is complete. Phase 3 awaits its commit; phase 4 remains pending. Status returned to implementing because the earlier review covered phase 2, not the new phase 3 implementation.
