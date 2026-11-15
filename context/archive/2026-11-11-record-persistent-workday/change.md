@@ -1,10 +1,10 @@
 ---
 change_id: record-persistent-workday
 title: Record persistent workday
-status: impl_reviewed
+status: archived
 created: 2026-11-11
-updated: 2026-11-14
-archived_at: null
+updated: 2026-11-15
+archived_at: 2026-11-15T07:55:54Z
 ---
 
 ## Notes
