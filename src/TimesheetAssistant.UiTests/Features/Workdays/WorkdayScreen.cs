@@ -11,6 +11,8 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
 
     public ILocator Dialog => _page.GetByRole(AriaRole.Alertdialog);
 
+    private ILocator DailyTotals => _page.GetByRole(AriaRole.Region, new() { Name = "Daily totals" });
+
     public ILocator Field(string name) => _page.GetByLabel(name, new() { Exact = true });
 
     public ILocator Button(string name) => _page.GetByRole(AriaRole.Button, new() { Name = name, Exact = true });
@@ -20,6 +22,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
         application.RecordStage("workday editor ready");
         await Expect(_page.GetByRole(AriaRole.Heading, new() { Name = "Workday", Exact = true })).ToBeVisibleAsync();
         await Expect(Button("Save")).ToBeEnabledAsync();
+        await Expect(DailyTotals).ToHaveAttributeAsync("aria-busy", "false", new() { Timeout = application.UiTimeoutMilliseconds });
     }
 
     public async Task FillAsync(string jira, string title, string description, string duration)
@@ -28,6 +31,10 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
         await Field("Item title").FillAsync(title);
         await Field("Work description (optional)").FillAsync(description);
         await Field("Duration").FillAsync(duration);
+        await Expect(Field("Jira ID")).ToHaveValueAsync(jira);
+        await Expect(Field("Item title")).ToHaveValueAsync(title);
+        await Expect(Field("Work description (optional)")).ToHaveValueAsync(description);
+        await Expect(Field("Duration")).ToHaveValueAsync(duration);
     }
 
     public async Task SaveAsync(string status = "Entry saved.")
@@ -35,6 +42,8 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
         application.RecordStage("save entry through UI");
         await Button("Save").ClickAsync();
         await Expect(_page.GetByRole(AriaRole.Status)).ToHaveTextAsync(status);
+        await Expect(Field("Item title")).ToHaveValueAsync("");
+        await Expect(Field("Jira ID")).ToBeFocusedAsync(new() { Timeout = application.UiTimeoutMilliseconds });
     }
 
     public async Task AddAsync(string jira, string title, string description, string duration)
@@ -48,6 +57,9 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
         application.RecordStage("select work date");
         await Field("Work date").FillAsync(date);
         await Field("Work date").PressAsync("Tab");
+        // Browser input echo does not acknowledge the asynchronous Blazor date load.
+        await Expect(DailyTotals).ToHaveAttributeAsync("data-work-date", date, new() { Timeout = application.UiTimeoutMilliseconds });
+        await Expect(DailyTotals).ToHaveAttributeAsync("aria-busy", "false", new() { Timeout = application.UiTimeoutMilliseconds });
         await Expect(Field("Work date")).ToHaveValueAsync(date);
         await Expect(Button("Save")).ToBeEnabledAsync();
     }
@@ -77,6 +89,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
     {
         await Rows.Nth(index).GetByRole(AriaRole.Button, new() { Name = "Edit", Exact = true }).ClickAsync();
         await Expect(_page.GetByRole(AriaRole.Heading, new() { Name = "Edit entry", Exact = true })).ToBeVisibleAsync();
+        await Expect(Field("Jira ID")).ToBeFocusedAsync(new() { Timeout = application.UiTimeoutMilliseconds });
     }
 
     public async Task DeleteAsync(int index, bool confirm)

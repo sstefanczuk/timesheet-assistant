@@ -68,6 +68,15 @@ Only failure fixtures use direct database preparation; ordinary entries are save
 through the visible UI. Native SQLite is a UiTests dependency for bounded failure
 setup, never a UnitTests dependency.
 
+Date selection waits for the rendered snapshot's `data-work-date` and idle
+`aria-busy` state, not just the browser input's echoed value. Successful saves
+wait for the cleared editor and its requested focus before the next interaction.
+`WorkdayInputTests` holds a browser date-change event to prove that the helper
+cannot report readiness before application acknowledgement, then releases it in
+finally. Its bounded negative completion assertion is not an action retry or a
+fixed UI sleep. A second scenario enters twelve records rapidly and verifies
+every saved field again after restart. Both scenarios use test-owned data only.
+
 `desktop.runsettings` routes `--logger trx` results to the ignored repository
 `artifacts/desktop-ui/` directory. Each fixture creates a unique subdirectory
 there containing `desktop.log`: timestamped startup, profile, PID, CDP endpoint,

@@ -245,3 +245,115 @@ Desktop CI F-01, clean-device compatibility, the remaining slices and full MVP
 acceptance are unchanged and incomplete. No push, hosted run, tag, release or
 publication-setting change was performed. Delivery text now describes persistent
 workday recording; the active workflow changes unit-test wording only.
+
+## Full review F1 triage — input readiness
+
+2026-11-14: The author approved investigating and fixing full-review F1. Source:
+working-tree changes based on fc9e5b1d3ab2a7459772f0c451edb380a26627fc.
+
+The original full review recorded 8/9 passing desktop tests and a missing title
+at the first valid save. The unchanged targeted replay passed. Inspection found
+that DateAsync waited only for the browser input echo and enabled Save; neither
+acknowledges the selected date's asynchronous load. Diagnostic event logs also
+showed the date briefly reverting during rendering before the selected day was
+loaded. The precise internal event sequence of the original missing-title trace
+was not independently reproduced; no production data-loss claim is made.
+
+The fix exposes the actual snapshot date on the existing Daily totals region as
+data-work-date and its busy state as aria-busy. DateAsync now waits for that
+loaded date and idle state. SaveAsync waits for the cleared editor and requested
+focus; EditAsync waits for requested focus. FillAsync checks all supplied field
+values before proceeding. Actions are not retried and no fixed sleeps were added.
+The temporary diagnostic value/focus instrumentation was removed from source.
+
+Two new real-desktop regressions cover the boundary:
+
+- Hold the browser date-change event at window capture, ahead of Blazor's
+  document-level delegation. While the input shows the requested date, assert
+  the loaded snapshot still belongs to the original date and the helper remains
+  pending within a bounded 300 ms negative-completion assertion. Release in
+  finally, then save and verify date partitioning.
+- Enter twelve records rapidly, assert their exact saved fields/order, restart
+  with a fresh profile and assert all records again.
+
+Verification and intermediate results:
+
+- Release solution build passed, 0 warnings/errors; pure UnitTests passed 87/87.
+- Temporary diagnostic probes against package 111403 passed (one initial probe
+  and two sets of three fresh launches). These probes were investigative only;
+  they did not reproduce the original missing-title sequence.
+- The first version of the held-event regression used document capture, which
+  could run after Blazor's listener. It was corrected to window capture and an
+  explicit old-snapshot precondition. Earlier results from that setup are not
+  accepted as proof that the application event was held.
+- The first working-tree package 111404 was published before an overlapping
+  solution build finished. Its deps manifest omitted the runtime pack/CoreCLR
+  entries; all 11 tests failed before CDP with host exit 0x80008087. A bounded
+  child-only host trace reported Could not resolve CoreCLR path. This was a
+  local verification orchestration error, not a tested UI regression. No package
+  or release was distributed. Diagnostics: artifacts/f1-startup-diagnosis/;
+  TRX: artifacts/desktop-ui/s01-f1-fixed-full.trx.
+- Rebuilt sequentially using ./scripts/Package-Windows.ps1 -Version 0.1.0-preview.111405
+  -Commit fc9e5b1d3ab2a7459772f0c451edb380a26627fc -BuildNumber 1114.
+  This is an uncommitted working-tree fix package, not an exact committed build.
+  EXE: artifacts/publish-0.1.0-preview.111405/TimesheetAssistant.exe.
+  ZIP SHA-256: ecb337af38403fa8aa060f1dc3f62cc68b8abb9fd16618babdfe2b8648abefb9.
+  Its manifest contains the runtime pack and CoreCLR entries.
+- The initial full run on 111405 passed 10/11; the only failure was the then
+  incorrect held-event test setup described above. TRX:
+  artifacts/desktop-ui/s01-f1-fixed-111405-full.trx.
+- With corrected window capture, the targeted date regression passed 1/1:
+  artifacts/desktop-ui/s01-date-readiness-fixed.trx.
+- Deliberately removed only the helper's data-work-date wait, keeping the app,
+  idle wait and regression assertions unchanged. The targeted regression failed:
+  the selection task completed despite the held event and old snapshot. TRX:
+  artifacts/desktop-ui/s01-date-readiness-mutant.trx. The original helper bytes
+  and caller EXE variable were restored in finally. This is the accepted negative
+  control; no intentional regression remains in source.
+
+The final full-suite outcome and review decision are recorded below after the
+restored source is exercised. F2 (caption culture) is a separate pending decision.
+The existing author confirmation is associated with package 111402; this triage
+makes no new manual-acceptance, hosted CI or clean-device claim.
+
+Final restored-source outcomes for F1:
+
+- Full UiTests command with --no-restore and logger file s01-f1-final-full.trx:
+  runner exit 0, TRX total/executed/passed 11, failed/skipped 0, duration 1m42s.
+- Inspected all 21 launch logs from that run: every launch and scenario cleanup
+  completed; none of the logged profile/domain paths remained afterward.
+- Final targeted replay of WorkdayInputTests and the originally failing
+  Validation_and_cancelled_discard scenario passed 3/3, failed/skipped 0,
+  duration 25s: artifacts/desktop-ui/s01-f1-final-focused.trx. This also verifies
+  the final regression derives its test date from the app's displayed date,
+  avoiding dependence on the clock changing at midnight.
+- git diff --check passed. No diagnostic instrumentation or deliberate removal
+  of the readiness wait remains in source; all artifacts stay ignored.
+
+F1 is recorded FIXED in reviews/impl-review.md and follow-ups/review-fixes.md.
+The current review verdict is APPROVED with F2 (caption culture) still pending.
+The exact internal sequence behind the original missing-title trace remains a
+limitation; the premature-readiness boundary is reproduced and protected by the
+negative control and regression above. No new author confirmation, commit, push,
+CI experiment or release was performed.
+
+## Full review F2 triage — English caption date
+
+2026-11-14: The author approved explicit en-US formatting in the table caption.
+WorkdayPage.razor now calls _date.ToString("D",
+System.Globalization.CultureInfo.GetCultureInfo("en-US")). The matching finding
+is FIXED in both the full report (F2) and phase 3 report (F1).
+
+- dotnet build TimesheetAssistant.sln -c Release --no-restore: exit 0,
+  0 warnings/errors.
+- dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release --no-build --no-restore:
+  exit 0, 87 passed, 0 failed/skipped.
+- Executed the same DateOnly formatting expression with current culture pl-PL:
+  expected and actual Saturday, November 14, 2026. The caller culture was restored
+  in finally. The caption uses English independently of the machine culture.
+- git diff --check passed. No new test, package or desktop run was introduced
+  for this small formatting change. F1's 11/11 desktop and 3/3 replay counts refer
+  to package 111405 before the caption-only edit.
+
+Full-review triage is complete: F1/F2 fixed, all current dimensions PASS,
+overall APPROVED. Changes remain uncommitted; no push or release was performed.

@@ -13,7 +13,7 @@
 
 | Dimension | Verdict |
 |-----------|---------|
-| Plan Adherence | WARNING |
+| Plan Adherence | PASS |
 | Scope Discipline | PASS |
 | Safety & Quality | PASS |
 | Architecture | PASS |
@@ -30,7 +30,7 @@
 - **Location**: src/TimesheetAssistant/Features/Workdays/WorkdayPage.razor:93
 - **Detail**: Phase 3 and src/AGENTS.md require English UI. The app-authored caption calls `_date.ToString("D")` without a culture; no application-level English culture override exists. With CurrentCulture pl-PL, the caption includes Polish weekday/month names, for example `Entries for sobota, 14 listopada 2026, in creation order`. This concerns the caption produced by the app, not the native date picker's regional display. No data loss or incorrect selected date results. Both independent review agents identified this observation; the culture-specific .NET formatting result was checked separately, without launching or modifying user data.
 - **Fix**: Pass an explicit English culture to this caption's date formatting, keeping date storage and native date selection unchanged.
-- **Decision**: PENDING
+- **Decision**: FIXED — user approved the matching full-review F2 on 2026-11-14. The caption now uses explicit en-US formatting. Release build and 87 pure tests passed; the exact DateOnly expression remained English under pl-PL current culture. The fix is in the working tree and recorded in reviews/impl-review.md and verification.md.
 
 ## Scope and evidence
 

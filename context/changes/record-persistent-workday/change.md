@@ -1,7 +1,7 @@
 ---
 change_id: record-persistent-workday
 title: Record persistent workday
-status: implemented
+status: impl_reviewed
 created: 2026-11-11
 updated: 2026-11-14
 archived_at: null
@@ -38,3 +38,9 @@ S-01 from roadmap v3. Complexity MEDIUM and seven design questions confirmed by 
 2026-11-14: The author confirmed that package 0.1.0-preview.111402 works as expected, explicitly including loading the same database and previously saved entries after launching from another application location. Manual criterion 4.5 is complete. All plan criteria are now checked; the phase 4 commit and final implementation review/triage remain pending. Desktop CI, clean-device and full-MVP acceptance remain outside this confirmation.
 
 2026-11-14: Phase 4 committed as b3a3a30. All four phases are implemented and verified, including author confirmation for package 0.1.0-preview.111402. Phase 4 SHA annotations and implemented status are recorded in the closing documentation commit. Final implementation review/triage remains required before merging; deferred desktop CI and full-MVP acceptance are unchanged.
+
+2026-11-14: Full review of phases 1-4 at fc9e5b1 recorded in reviews/impl-review.md. Verdict NEEDS ATTENTION: the fresh package 0.1.0-preview.111403 passed Release build and 87 unit tests, but the full desktop run passed 8/9 with an intermittently missing title during the initial valid save. Targeted unchanged replay passed 1/1; root cause remains unproven. The existing culture-dependent caption observation also remains pending. Both requested review agents lacked filesystem tools, so the parent performed the source review. No production/test fixes or commits were made; triage is pending.
+
+2026-11-14: User approved full-review F1. Fixed a reproduced date-readiness defect: browser date echo no longer suffices for the UI helper; it awaits the actual rendered snapshot date and idle state. Save/Edit synchronization and field assertions were strengthened. Added two desktop regressions; the readiness regression fails when its new wait is deliberately removed and passes with the fix. Working-tree package 111405 passed the full 11-test desktop suite; all 21 sessions and scenario data cleaned up. Release build and 87 pure tests passed. Full-review verdict is now APPROVED with F1 fixed and F2 (caption culture) still pending. Exact internal ordering of the original missing-title occurrence remains unproven; details and intermediate failures are retained in verification.md. No commit or push was made during triage.
+
+2026-11-14: User approved full-review F2. The table caption now formats its date explicitly with en-US culture. Release build passed with 0 warnings/errors and all 87 pure tests passed; the exact DateOnly expression remained English under pl-PL current culture. Full-review F2 and matching phase 3 F1 are recorded FIXED. Full-review triage is complete, all current dimensions PASS, verdict APPROVED. The fixes and review documentation remain uncommitted; no new desktop run, push or release is claimed for the caption-only change.

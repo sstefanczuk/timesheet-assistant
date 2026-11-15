@@ -35,7 +35,8 @@
     }
     else
     {
-        <section aria-label="Daily totals" class="totals alert alert-light" aria-live="polite">
+        <section aria-label="Daily totals" class="totals alert alert-light" aria-live="polite"
+                 aria-busy="@(_busy ? "true" : "false")" data-work-date="@DateText(_snapshot.Date)">
             <span>Total: <strong>@DurationParser.Format(_snapshot.Totals.TotalMinutes)</strong></span>
             @if (_snapshot.Totals.ExcessMinutes > 0)
             {
@@ -90,7 +91,7 @@
             {
                 <div class="table-responsive">
                     <table class="table align-middle">
-                        <caption>Entries for @_date.ToString("D"), in creation order</caption>
+                        <caption>Entries for @_date.ToString("D", System.Globalization.CultureInfo.GetCultureInfo("en-US")), in creation order</caption>
                         <thead><tr><th scope="col">Jira ID</th><th scope="col">Item title</th><th scope="col">Work description</th><th scope="col">Duration</th><th scope="col">Actions</th></tr></thead>
                         <tbody>
                             @foreach (var entry in _snapshot.Entries)
