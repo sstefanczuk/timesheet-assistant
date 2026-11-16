@@ -14,6 +14,52 @@ internal sealed class FakeWorkEntryStore : IWorkEntryStore
 
     public int Calls { get; private set; }
 
+    public Func<CancellationToken, Task>? BeforeHistoryReadAsync { get; set; }
+
+    public List<(DateOnly BeforeExclusive, int DayLimit)> HistoryRequests { get; } = [];
+
+    public async Task<WorkEntryHistoryPage> ReadHistoryAsync(DateOnly beforeExclusive, int dayLimit,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(dayLimit);
+        HistoryRequests.Add((beforeExclusive, dayLimit));
+        await BeforeHistoryAsync(cancellationToken);
+        var days = HistoryDays().Where(day => day.Date < beforeExclusive).ToArray();
+
+        return new WorkEntryHistoryPage(days.Take(dayLimit), days.Length > dayLimit);
+    }
+
+    public async Task<WorkEntryHistoryPage> ReadHistoryRangeAsync(DateOnly fromInclusive, DateOnly beforeExclusive,
+        CancellationToken cancellationToken = default)
+    {
+        if (fromInclusive >= beforeExclusive)
+        {
+            throw new ArgumentOutOfRangeException(nameof(fromInclusive));
+        }
+
+        await BeforeHistoryAsync(cancellationToken);
+        var days = HistoryDays().ToArray();
+
+        return new WorkEntryHistoryPage(days.Where(day => day.Date >= fromInclusive && day.Date < beforeExclusive),
+            days.Any(day => day.Date < fromInclusive));
+    }
+
+    private IEnumerable<WorkdaySnapshot> HistoryDays() => _entries.GroupBy(entry => entry.WorkDate)
+        .OrderByDescending(group => group.Key)
+        .Select(group => new WorkdaySnapshot(group.Key, group.OrderBy(entry => entry.CreationOrder).ToArray()));
+
+    private async Task BeforeHistoryAsync(CancellationToken cancellationToken)
+    {
+        BeforeOperation();
+
+        if (BeforeHistoryReadAsync is not null)
+        {
+            await BeforeHistoryReadAsync(cancellationToken);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
     public Task<IReadOnlyList<WorkEntry>> ReadAsync(DateOnly date, CancellationToken cancellationToken = default)
     {
         BeforeOperation();

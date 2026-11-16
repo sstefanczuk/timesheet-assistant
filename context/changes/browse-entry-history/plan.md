@@ -236,9 +236,9 @@ No schema or data-path migration is intended. Existing version-1 stores remain r
 
 #### Automated
 
-- [ ] 1.1 Release solution build succeeds: `dotnet build TimesheetAssistant.sln -c Release`.
-- [ ] 1.2 Pure tests pass, including history state and existing workday regressions: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release`.
-- [ ] 1.3 `git diff --check` passes; schema version, Windows target and pure-test dependency boundaries are preserved.
+- [x] 1.1 Release solution build succeeds: `dotnet build TimesheetAssistant.sln -c Release`.
+- [x] 1.2 Pure tests pass, including history state and existing workday regressions: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release`.
+- [x] 1.3 `git diff --check` passes; schema version, Windows target and pure-test dependency boundaries are preserved.
 
 ### Phase 2: History and Editor on One Screen
 

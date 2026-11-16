@@ -6,6 +6,12 @@ public interface IWorkEntryStore
     /// <summary>Returns only this date's entries, ordered by immutable creation order.</summary>
     Task<IReadOnlyList<WorkEntry>> ReadAsync(DateOnly date, CancellationToken cancellationToken = default);
 
+    /// <summary>Returns complete nonempty days, newest first, from one consistent read snapshot.</summary>
+    Task<WorkEntryHistoryPage> ReadHistoryAsync(DateOnly beforeExclusive, int dayLimit, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns all nonempty days in the inclusive/exclusive interval from one consistent read snapshot.</summary>
+    Task<WorkEntryHistoryPage> ReadHistoryRangeAsync(DateOnly fromInclusive, DateOnly beforeExclusive, CancellationToken cancellationToken = default);
+
     /// <summary>Assigns a unique identity and monotonically increasing creation order.</summary>
     Task<WorkEntry> AddAsync(DateOnly date, WorkEntryValues values, CancellationToken cancellationToken = default);
 

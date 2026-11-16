@@ -97,6 +97,101 @@ public sealed class SqliteWorkEntryStore : IWorkEntryStore, IDisposable
             return entries.AsReadOnly();
         }, cancellationToken);
 
+    public Task<WorkEntryHistoryPage> ReadHistoryAsync(DateOnly beforeExclusive, int dayLimit,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(dayLimit);
+
+        return ReadHistoryPageAsync(null, beforeExclusive, dayLimit, cancellationToken);
+    }
+
+    public Task<WorkEntryHistoryPage> ReadHistoryRangeAsync(DateOnly fromInclusive, DateOnly beforeExclusive,
+        CancellationToken cancellationToken = default)
+    {
+        if (fromInclusive >= beforeExclusive)
+        {
+            throw new ArgumentOutOfRangeException(nameof(fromInclusive));
+        }
+
+        return ReadHistoryPageAsync(fromInclusive, beforeExclusive, null, cancellationToken);
+    }
+
+    private Task<WorkEntryHistoryPage> ReadHistoryPageAsync(DateOnly? fromInclusive, DateOnly beforeExclusive,
+        int? dayLimit, CancellationToken cancellationToken) =>
+        ExecuteAsync(connection =>
+        {
+            using var transaction = connection.BeginTransaction(deferred: true);
+            var dates = new List<DateOnly>();
+
+            using (var command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = fromInclusive.HasValue
+                    ? "SELECT DISTINCT work_date FROM work_entries WHERE work_date >= $from AND work_date < $before ORDER BY work_date DESC;"
+                    : "SELECT DISTINCT work_date FROM work_entries WHERE work_date < $before ORDER BY work_date DESC LIMIT $limit;";
+                command.Parameters.AddWithValue("$before", FormatDate(beforeExclusive));
+
+                if (fromInclusive.HasValue)
+                {
+                    command.Parameters.AddWithValue("$from", FormatDate(fromInclusive.Value));
+                }
+                else
+                {
+                    command.Parameters.AddWithValue("$limit", (long)dayLimit!.Value + 1);
+                }
+
+                using var reader = command.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    dates.Add(DateOnly.ParseExact(reader.GetString(0), "yyyy-MM-dd", CultureInfo.InvariantCulture));
+                }
+            }
+
+            var hasOlder = dayLimit.HasValue && dates.Count > dayLimit.Value;
+
+            if (hasOlder)
+            {
+                dates.RemoveAt(dates.Count - 1);
+            }
+
+            if (fromInclusive.HasValue)
+            {
+                using var lookahead = connection.CreateCommand();
+                lookahead.Transaction = transaction;
+                lookahead.CommandText = "SELECT EXISTS(SELECT 1 FROM work_entries WHERE work_date < $from);";
+                lookahead.Parameters.AddWithValue("$from", FormatDate(fromInclusive.Value));
+                hasOlder = Convert.ToInt64(lookahead.ExecuteScalar(), CultureInfo.InvariantCulture) != 0;
+            }
+
+            var days = new List<WorkdaySnapshot>();
+
+            foreach (var date in dates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = $"SELECT {Columns} FROM work_entries WHERE work_date = $date ORDER BY creation_order;";
+                command.Parameters.AddWithValue("$date", FormatDate(date));
+                using var reader = command.ExecuteReader();
+                var entries = new List<WorkEntry>();
+
+                while (reader.Read())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    entries.Add(ReadEntry(reader));
+                }
+
+                days.Add(new WorkdaySnapshot(date, entries.AsReadOnly()));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            transaction.Commit();
+
+            return new WorkEntryHistoryPage(days, hasOlder);
+        }, cancellationToken);
+
     public Task<WorkEntry> AddAsync(DateOnly date, WorkEntryValues values, CancellationToken cancellationToken = default) =>
         ExecuteAsync(connection =>
         {
