@@ -1,7 +1,7 @@
 ---
 change_id: browse-entry-history
 title: Browse entry history
-status: implementing
+status: implemented
 created: 2026-11-15
 updated: 2026-11-17
 archived_at: null
