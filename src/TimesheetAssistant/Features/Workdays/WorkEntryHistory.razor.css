@@ -1,0 +1,5 @@
+.history-section { margin-block: 2rem; border-top: 1px solid #dee2e6; padding-top: 1.5rem; }
+.history-day { margin-block: 1.5rem; }
+.description { white-space: pre-wrap; overflow-wrap: anywhere; }
+td, th { overflow-wrap: anywhere; }
+.duration { white-space: nowrap; }

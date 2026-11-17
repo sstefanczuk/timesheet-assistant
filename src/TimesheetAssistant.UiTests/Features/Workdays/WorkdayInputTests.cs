@@ -47,7 +47,7 @@ public sealed class WorkdayInputTests
                 await launch.Page.WaitForFunctionAsync("() => window.workDateChangeHeld === true");
                 await Expect(screen.Field("Work date")).ToHaveValueAsync(date);
                 await Expect(screen.Button("Save")).ToBeEnabledAsync();
-                await Expect(launch.Page.GetByRole(AriaRole.Region, new() { Name = "Daily totals" }))
+                await Expect(screen.DailyTotals)
                     .ToHaveAttributeAsync("data-work-date", originalDate);
 
                 // A bounded negative completion assertion, not a delay/retry of UI actions.

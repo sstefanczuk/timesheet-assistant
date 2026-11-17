@@ -7,15 +7,21 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
 {
     private readonly IPage _page = application.Page;
 
-    public ILocator Rows => _page.Locator("tbody tr");
+    public ILocator Editor => _page.GetByRole(AriaRole.Region, new() { Name = "Selected-day editor", Exact = true });
+
+    public ILocator Rows => Editor.Locator("tbody tr");
+
+    public ILocator Status => Editor.GetByRole(AriaRole.Status);
+
+    public ILocator Alerts => Editor.GetByRole(AriaRole.Alert);
 
     public ILocator Dialog => _page.GetByRole(AriaRole.Alertdialog);
 
-    private ILocator DailyTotals => _page.GetByRole(AriaRole.Region, new() { Name = "Daily totals" });
+    public ILocator DailyTotals => Editor.GetByRole(AriaRole.Region, new() { Name = "Daily totals", Exact = true });
 
-    public ILocator Field(string name) => _page.GetByLabel(name, new() { Exact = true });
+    public ILocator Field(string name) => Editor.GetByLabel(name, new() { Exact = true });
 
-    public ILocator Button(string name) => _page.GetByRole(AriaRole.Button, new() { Name = name, Exact = true });
+    public ILocator Button(string name) => Editor.GetByRole(AriaRole.Button, new() { Name = name, Exact = true });
 
     public async Task ReadyAsync()
     {
@@ -23,6 +29,12 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
         await Expect(_page.GetByRole(AriaRole.Heading, new() { Name = "Workday", Exact = true })).ToBeVisibleAsync();
         await Expect(Button("Save")).ToBeEnabledAsync();
         await Expect(DailyTotals).ToHaveAttributeAsync("aria-busy", "false", new() { Timeout = application.UiTimeoutMilliseconds });
+        await Expect(_page.GetByRole(AriaRole.Region, new() { Name = "Earlier days", Exact = true }))
+            .ToHaveAttributeAsync("aria-busy", "false", new() { Timeout = application.UiTimeoutMilliseconds });
+        await Expect(_page.GetByRole(AriaRole.Region, new() { Name = "Today", Exact = true }).GetByRole(AriaRole.Alert))
+            .ToHaveCountAsync(0);
+        await Expect(_page.GetByRole(AriaRole.Region, new() { Name = "Earlier days", Exact = true }).GetByRole(AriaRole.Alert))
+            .ToHaveCountAsync(0);
     }
 
     public async Task FillAsync(string jira, string title, string description, string duration)
@@ -41,7 +53,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
     {
         application.RecordStage("save entry through UI");
         await Button("Save").ClickAsync();
-        await Expect(_page.GetByRole(AriaRole.Status)).ToHaveTextAsync(status);
+        await Expect(Status).ToHaveTextAsync(status);
         await Expect(Field("Item title")).ToHaveValueAsync("");
         await Expect(Field("Jira ID")).ToBeFocusedAsync(new() { Timeout = application.UiTimeoutMilliseconds });
     }
@@ -66,7 +78,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
 
     public async Task TotalsAsync(string total, string balance)
     {
-        var totals = _page.GetByRole(AriaRole.Region, new() { Name = "Daily totals" });
+        var totals = DailyTotals;
         await Expect(totals).ToContainTextAsync($"Total: {total}");
         await Expect(totals).ToContainTextAsync(balance);
     }
@@ -88,7 +100,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
     public async Task EditAsync(int index)
     {
         await Rows.Nth(index).GetByRole(AriaRole.Button, new() { Name = "Edit", Exact = true }).ClickAsync();
-        await Expect(_page.GetByRole(AriaRole.Heading, new() { Name = "Edit entry", Exact = true })).ToBeVisibleAsync();
+        await Expect(Editor.GetByRole(AriaRole.Heading, new() { Name = "Edit entry", Exact = true })).ToBeVisibleAsync();
         await Expect(Field("Jira ID")).ToBeFocusedAsync(new() { Timeout = application.UiTimeoutMilliseconds });
     }
 
@@ -101,7 +113,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
 
         if (confirm)
         {
-            await Expect(_page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Entry deleted.");
+            await Expect(Status).ToHaveTextAsync("Entry deleted.");
         }
     }
 }

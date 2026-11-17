@@ -24,6 +24,8 @@ public static class MauiProgram
 			?? throw new InvalidOperationException("Local storage is unavailable."));
 		builder.Services.AddScoped(services => new WorkdayService(
 			services.GetRequiredService<IWorkEntryStore>(), () => DateOnly.FromDateTime(DateTime.Now)));
+		builder.Services.AddScoped(services => new WorkEntryHistoryService(
+			services.GetRequiredService<IWorkEntryStore>(), () => DateOnly.FromDateTime(DateTime.Now)));
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

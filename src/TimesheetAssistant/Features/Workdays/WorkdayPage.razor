@@ -1,5 +1,6 @@
 @page "/"
 @inject WorkdayService Service
+@inject WorkEntryHistoryService HistoryService
 
 <PageTitle>Workday | Timesheet Assistant</PageTitle>
 
@@ -7,109 +8,120 @@
     <h1>Workday</h1>
     <p>Record your work and track your daily target of 7h 12m.</p>
 
-    <div class="mb-3 date-picker">
-        <label for="work-date" class="form-label">Work date</label>
-        <input @key="_dateInputVersion" id="work-date" type="date" class="form-control" value="@DateText(_date)"
-               max="@DateText(Today)" @onchange="ChangeDateAsync" disabled="@_busy" aria-describedby="date-error" />
-        <div id="date-error" class="text-danger" role="alert">@_dateError</div>
-    </div>
+    <WorkEntryHistory IsToday="true" Snapshot="HistoryService.Snapshot" Loading="_historyBusy" Error="@_historyError"
+                      Disabled="_busy" ShareTodayEntries="ShareTodayEntries"
+                      AddToday="AddTodayAsync" EntrySelected="Edit" />
 
-    @if (_busy)
-    {
-        <p role="status">@(_saving ? "Saving changes…" : "Loading entries…")</p>
-    }
-    @if (_error is not null)
-    {
-        <div class="alert alert-danger" role="alert">@_error</div>
-    }
-    @if (_status is not null)
-    {
-        <p role="status" class="text-success">@_status</p>
-    }
-    @if (_snapshot is null)
-    {
-        @if (!_busy)
+    <section id="selected-day-editor" aria-label="Selected-day editor" aria-busy="@(_busy ? "true" : "false")">
+        <h2>Selected-day editor</h2>
+
+        <div class="mb-3 date-picker">
+            <label for="work-date" class="form-label">Work date</label>
+            <input @key="_dateInputVersion" id="work-date" type="date" class="form-control" value="@DateText(_date)"
+                   max="@DateText(Today)" @onchange="ChangeDateAsync" disabled="@_busy" aria-describedby="date-error" />
+            <div id="date-error" class="text-danger" role="alert">@_dateError</div>
+        </div>
+
+        @if (_busy)
         {
-            <button class="btn btn-primary" type="button" @onclick="() => LoadAsync(_date)">Retry loading entries</button>
+            <p role="status">@(_saving ? "Saving changes…" : "Loading entries…")</p>
         }
-    }
-    else
-    {
-        <section aria-label="Daily totals" class="totals alert alert-light" aria-live="polite"
-                 aria-busy="@(_busy ? "true" : "false")" data-work-date="@DateText(_snapshot.Date)">
-            <span>Total: <strong>@DurationParser.Format(_snapshot.Totals.TotalMinutes)</strong></span>
-            @if (_snapshot.Totals.ExcessMinutes > 0)
+        @if (_error is not null)
+        {
+            <div class="alert alert-danger" role="alert">@_error</div>
+        }
+        @if (_status is not null && !_busy)
+        {
+            <p role="status" class="text-success">@_status</p>
+        }
+        @if (_snapshot is null)
+        {
+            @if (!_busy)
             {
-                <span class="text-danger">Excess: <strong>@DurationParser.Format(_snapshot.Totals.ExcessMinutes)</strong></span>
+                <button class="btn btn-primary" type="button" @onclick="() => LoadAsync(_date)">Retry loading entries</button>
             }
-            else
-            {
-                <span>Remaining: <strong>@DurationParser.Format(_snapshot.Totals.RemainingMinutes)</strong></span>
-            }
-        </section>
+        }
+        else
+        {
+            <section aria-label="Daily totals" class="totals alert alert-light" aria-live="polite"
+                     aria-busy="@(_busy ? "true" : "false")" data-work-date="@DateText(_snapshot.Date)">
+                <span>Total: <strong>@DurationParser.Format(_snapshot.Totals.TotalMinutes)</strong></span>
+                @if (_snapshot.Totals.ExcessMinutes > 0)
+                {
+                    <span class="text-danger">Excess: <strong>@DurationParser.Format(_snapshot.Totals.ExcessMinutes)</strong></span>
+                }
+                else
+                {
+                    <span>Remaining: <strong>@DurationParser.Format(_snapshot.Totals.RemainingMinutes)</strong></span>
+                }
+            </section>
 
-        <section aria-labelledby="editor-title" class="mb-4">
-            <h2 id="editor-title">@(_editingId.HasValue ? "Edit entry" : "Add entry")</h2>
-            <form @onsubmit="SaveAsync" @onsubmit:preventDefault novalidate>
-                <fieldset disabled="@_busy">
-                    <div class="mb-3">
-                        <label for="jira-id" class="form-label">Jira ID</label>
-                        <input @ref="_jiraInput" id="jira-id" class="form-control" @bind="_jiraId" @bind:event="oninput"
-                               aria-required="true" aria-invalid="@(FieldError("JiraId") is not null ? "true" : "false")" aria-describedby="jira-error" />
-                        <div id="jira-error" class="text-danger" role="alert">@FieldError("JiraId")</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="item-title" class="form-label">Item title</label>
-                        <input id="item-title" class="form-control" @bind="_title" @bind:event="oninput"
-                               aria-required="true" aria-invalid="@(FieldError("Title") is not null ? "true" : "false")" aria-describedby="title-error" />
-                        <div id="title-error" class="text-danger" role="alert">@FieldError("Title")</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="work-description" class="form-label">Work description (optional)</label>
-                        <textarea id="work-description" class="form-control" rows="2" @bind="_description" @bind:event="oninput"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="duration" class="form-label">Duration</label>
-                        <input id="duration" class="form-control" @bind="_duration" @bind:event="oninput"
-                               aria-required="true" aria-invalid="@(FieldError("Duration") is not null ? "true" : "false")" aria-describedby="duration-help duration-error" />
-                        <div id="duration-help" class="form-text">For example: 1h, 30m or 6h 12m. Enter 1 minute to 24 hours.</div>
-                        <div id="duration-error" class="text-danger" role="alert">@FieldError("Duration")</div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Save</button>
-                    <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CancelEditor">Cancel</button>
-                </fieldset>
-            </form>
-        </section>
+            <section aria-labelledby="editor-title" class="mb-4">
+                <h2 id="editor-title">@(_editingId.HasValue ? "Edit entry" : "Add entry")</h2>
+                <form @onsubmit="SaveAsync" @onsubmit:preventDefault novalidate>
+                    <fieldset disabled="@_busy">
+                        <div class="mb-3">
+                            <label for="jira-id" class="form-label">Jira ID</label>
+                            <input @ref="_jiraInput" id="jira-id" class="form-control" @bind="_jiraId" @bind:event="oninput"
+                                   aria-required="true" aria-invalid="@(FieldError("JiraId") is not null ? "true" : "false")" aria-describedby="jira-error" />
+                            <div id="jira-error" class="text-danger" role="alert">@FieldError("JiraId")</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="item-title" class="form-label">Item title</label>
+                            <input id="item-title" class="form-control" @bind="_title" @bind:event="oninput"
+                                   aria-required="true" aria-invalid="@(FieldError("Title") is not null ? "true" : "false")" aria-describedby="title-error" />
+                            <div id="title-error" class="text-danger" role="alert">@FieldError("Title")</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="work-description" class="form-label">Work description (optional)</label>
+                            <textarea id="work-description" class="form-control" rows="2" @bind="_description" @bind:event="oninput"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="duration" class="form-label">Duration</label>
+                            <input id="duration" class="form-control" @bind="_duration" @bind:event="oninput"
+                                   aria-required="true" aria-invalid="@(FieldError("Duration") is not null ? "true" : "false")" aria-describedby="duration-help duration-error" />
+                            <div id="duration-help" class="form-text">For example: 1h, 30m or 6h 12m. Enter 1 minute to 24 hours.</div>
+                            <div id="duration-error" class="text-danger" role="alert">@FieldError("Duration")</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CancelEditor">Cancel</button>
+                    </fieldset>
+                </form>
+            </section>
 
-        <section aria-labelledby="entries-title">
-            <h2 id="entries-title">Saved entries</h2>
-            @if (_snapshot.Entries.Count == 0)
-            {
-                <p>No entries for this date. Add your first entry above.</p>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table align-middle">
-                        <caption>Entries for @_date.ToString("D", System.Globalization.CultureInfo.GetCultureInfo("en-US")), in creation order</caption>
-                        <thead><tr><th scope="col">Jira ID</th><th scope="col">Item title</th><th scope="col">Work description</th><th scope="col">Duration</th><th scope="col">Actions</th></tr></thead>
-                        <tbody>
-                            @foreach (var entry in _snapshot.Entries)
-                            {
-                                <tr @key="entry.Id" data-entry-id="@entry.Id">
-                                    <td>@entry.JiraId</td><td>@entry.Title</td><td class="description">@entry.Description</td><td class="duration">@DurationParser.Format(entry.DurationMinutes)</td>
-                                    <td class="entry-actions">
-                                        <button type="button" class="btn btn-sm btn-outline-primary" disabled="@_busy" @onclick="() => Edit(entry)">Edit</button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => RequestDelete(entry)">Delete</button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </section>
-    }
+            <section aria-labelledby="entries-title">
+                <h2 id="entries-title">Saved entries</h2>
+                @if (_snapshot.Entries.Count == 0)
+                {
+                    <p>No entries for this date. Add your first entry above.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <caption>Entries for @_date.ToString("D", System.Globalization.CultureInfo.GetCultureInfo("en-US")), in creation order</caption>
+                            <thead><tr><th scope="col">Jira ID</th><th scope="col">Item title</th><th scope="col">Work description</th><th scope="col">Duration</th><th scope="col">Actions</th></tr></thead>
+                            <tbody>
+                                @foreach (var entry in _snapshot.Entries)
+                                {
+                                    <tr @key="entry.Id" data-entry-id="@entry.Id">
+                                        <td>@entry.JiraId</td><td>@entry.Title</td><td class="description">@entry.Description</td><td class="duration">@DurationParser.Format(entry.DurationMinutes)</td>
+                                        <td class="entry-actions">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" disabled="@_busy" @onclick="() => Edit(entry)">Edit</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => RequestDelete(entry)">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
+    </section>
+
+    <WorkEntryHistory Snapshot="HistoryService.Snapshot" Loading="_historyBusy" Error="@_historyError" Disabled="_busy"
+                      EntrySelected="Edit" Refresh="RefreshHistoryAsync" Retry="RetryHistoryAsync" LoadOlder="LoadOlderAsync" />
 </div>
 
 @if (_confirmation is not null)
@@ -123,6 +135,9 @@
     private WorkdaySnapshot? _snapshot;
     private bool _busy;
     private bool _saving;
+    private bool _historyBusy;
+    private string? _historyError;
+    private bool _retryOlder;
     private string? _error;
     private string? _dateError;
     private string? _status;
@@ -145,7 +160,14 @@
 
     private bool IsDirty => Input != _original;
 
-    protected override Task OnInitializedAsync() => LoadAsync(_date);
+    private bool ShareTodayEntries => _snapshot is not null && HistoryService.Snapshot is { } history
+        && _snapshot.Date == history.LocalToday && _snapshot.Entries.SequenceEqual(history.Today.Entries);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync(_date);
+        await RefreshHistoryAsync();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -237,19 +259,107 @@
             return Task.CompletedTask;
         }
 
-        return WithDiscardAsync(() =>
-        {
-            ResetEditor();
-            _editingId = entry.Id;
-            _jiraId = entry.JiraId;
-            _title = entry.Title;
-            _description = entry.Description;
-            _duration = DurationParser.Format(entry.DurationMinutes);
-            _original = Input;
-            _focusEditor = true;
+        return WithDiscardAsync(() => SelectEntryAsync(entry));
+    }
 
-            return Task.CompletedTask;
-        });
+    private async Task SelectEntryAsync(WorkEntry requested)
+    {
+        _busy = true;
+        _error = null;
+        _status = null;
+
+        try
+        {
+            var result = await Service.LoadEntryAsync(requested.WorkDate, requested.Id);
+
+            if (!result.IsSuccess)
+            {
+                ShowFailure(result, "load this entry");
+
+                return;
+            }
+
+            var destination = Service.Snapshot!;
+            var entry = destination.Entries.Single(saved => saved.Id == requested.Id);
+            _date = destination.Date;
+            _snapshot = destination;
+            _dateError = null;
+            _contextVersion++;
+            _dateInputVersion++;
+            PopulateEditor(entry);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void PopulateEditor(WorkEntry entry)
+    {
+        ResetEditor();
+        _editingId = entry.Id;
+        _jiraId = entry.JiraId;
+        _title = entry.Title;
+        _description = entry.Description;
+        _duration = DurationParser.Format(entry.DurationMinutes);
+        _original = Input;
+        _focusEditor = true;
+    }
+
+    private Task AddTodayAsync() => WithDiscardAsync(async () =>
+    {
+        var today = Today;
+        await LoadAsync(today);
+
+        if (_date == today && _error is null)
+        {
+            _focusEditor = true;
+            await RefreshHistoryAsync();
+        }
+    });
+
+    private Task RefreshHistoryAsync() => RunHistoryAsync(false);
+
+    private Task LoadOlderAsync() => RunHistoryAsync(true);
+
+    private Task RetryHistoryAsync() => RunHistoryAsync(_retryOlder);
+
+    private async Task RunHistoryAsync(bool older)
+    {
+        if (_busy || _confirmation is not null)
+        {
+            return;
+        }
+
+        _busy = true;
+
+        try
+        {
+            await ReadHistoryAsync(older);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ReadHistoryAsync(bool older = false)
+    {
+        _historyBusy = true;
+        _retryOlder = older;
+        StateHasChanged();
+
+        try
+        {
+            var result = older ? await HistoryService.LoadOlderAsync() : await HistoryService.RefreshAsync();
+            _historyError = result.IsSuccess ? null : HistoryService.Snapshot is null
+                ? "Could not load today and earlier days. Check local storage access and retry."
+                : "Today and earlier days have not been refreshed. Previously loaded entries and the older-day position have been kept. Check local storage access and retry.";
+        }
+        finally
+        {
+            _historyBusy = false;
+        }
     }
 
     private Task CancelEditor() => WithDiscardAsync(() =>
@@ -311,6 +421,7 @@
                 ResetEditor();
                 _status = id.HasValue ? "Entry updated." : "Entry saved.";
                 _focusEditor = true;
+                await ReadHistoryAsync();
             }
             else
             {
@@ -365,6 +476,7 @@
                 }
 
                 _status = "Entry deleted.";
+                await ReadHistoryAsync();
             }
             else
             {

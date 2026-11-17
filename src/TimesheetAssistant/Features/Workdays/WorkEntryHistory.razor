@@ -1,0 +1,123 @@
+<section aria-label="@(IsToday ? "Today" : "Earlier days")" class="history-section"
+         aria-busy="@(Loading ? "true" : "false")" data-local-today="@DateText(Snapshot?.LocalToday)"
+         data-oldest-boundary="@DateText(Snapshot?.OldestLoadedBoundary)">
+    <h2>@(IsToday ? "Today" : "Earlier days")</h2>
+    @if (IsToday)
+    {
+        <button type="button" class="btn btn-primary mb-3" disabled="@Disabled" @onclick="AddToday">Add entry for today</button>
+    }
+    else
+    {
+        <button type="button" class="btn btn-outline-secondary mb-3" disabled="@Disabled" @onclick="Refresh">Refresh history</button>
+    }
+    @if (Loading)
+    {
+        <p role="status">Loading @(IsToday ? "today’s entries" : "history")…</p>
+    }
+    @if (Error is not null)
+    {
+        <div role="alert" class="alert alert-warning">@Error</div>
+        @if (!IsToday)
+        {
+            <button type="button" class="btn btn-outline-primary mb-3" disabled="@Disabled" @onclick="Retry">Retry history</button>
+        }
+    }
+    @if (Snapshot is not null)
+    {
+        @if (IsToday)
+        {
+            <p><time datetime="@DateText(Snapshot.LocalToday)">@DisplayDate(Snapshot.LocalToday)</time></p>
+            <p>Total: <strong>@DurationParser.Format(Snapshot.Today.Totals.TotalMinutes)</strong></p>
+        }
+        @if (IsToday && ShareTodayEntries)
+        {
+            @if (Snapshot.Today.Entries.Count == 0)
+            {
+                <p>No entries for today. Add your first entry below.</p>
+            }
+            else
+            {
+                <p><a href="#selected-day-editor">Today’s saved entries are shown in the selected-day editor below.</a></p>
+            }
+        }
+        else
+        {
+            var days = IsToday ? new[] { Snapshot.Today } : Snapshot.Days;
+            @if (!IsToday && days.Count == 0)
+            {
+                <p>No earlier entries yet.</p>
+            }
+            @foreach (var day in days)
+            {
+                <section class="history-day" aria-label="@DisplayDate(day.Date)" data-work-date="@DateText(day.Date)" @key="day.Date">
+                    @if (!IsToday)
+                    {
+                        <h3><time datetime="@DateText(day.Date)">@DisplayDate(day.Date)</time></h3>
+                        <p>Total: <strong>@DurationParser.Format(day.Totals.TotalMinutes)</strong></p>
+                    }
+                    @if (day.Entries.Count == 0)
+                    {
+                        <p>No entries for today.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <caption>Entries for @DisplayDate(day.Date), in creation order</caption>
+                                <thead><tr><th scope="col">Jira ID</th><th scope="col">Item title</th><th scope="col">Work description</th><th scope="col">Duration</th><th scope="col">Actions</th></tr></thead>
+                                <tbody>
+                                    @foreach (var entry in day.Entries)
+                                    {
+                                        <tr @key="entry.Id" data-entry-id="@entry.Id">
+                                            <td>@entry.JiraId</td><td>@entry.Title</td><td class="description">@entry.Description</td><td class="duration">@DurationParser.Format(entry.DurationMinutes)</td>
+                                            <td><button type="button" class="btn btn-sm btn-outline-primary" disabled="@Disabled" @onclick="() => EntrySelected.InvokeAsync(entry)">Edit</button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            }
+        }
+        @if (!IsToday)
+        {
+            @if (Snapshot.HasOlder)
+            {
+                <button type="button" class="btn btn-outline-primary" disabled="@Disabled" @onclick="LoadOlder">Load older day</button>
+            }
+            else
+            {
+                <p>All earlier days loaded.</p>
+            }
+        }
+    }
+</section>
+
+@code {
+    [Parameter] public bool IsToday { get; set; }
+
+    [Parameter] public bool ShareTodayEntries { get; set; }
+
+    [Parameter] public WorkEntryHistorySnapshot? Snapshot { get; set; }
+
+    [Parameter] public bool Loading { get; set; }
+
+    [Parameter] public bool Disabled { get; set; }
+
+    [Parameter] public string? Error { get; set; }
+
+    [Parameter] public EventCallback<WorkEntry> EntrySelected { get; set; }
+
+    [Parameter] public EventCallback AddToday { get; set; }
+
+    [Parameter] public EventCallback Refresh { get; set; }
+
+    [Parameter] public EventCallback Retry { get; set; }
+
+    [Parameter] public EventCallback LoadOlder { get; set; }
+
+    private static string? DateText(DateOnly? date) => date?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string DisplayDate(DateOnly date) => date.ToString("D", System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+}

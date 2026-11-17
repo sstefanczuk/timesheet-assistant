@@ -46,6 +46,12 @@ public sealed class WorkdayService(IWorkEntryStore store, Func<DateOnly> localTo
     public WorkdaySnapshot? Snapshot { get; private set; }
 
     public Task<WorkdayResult> LoadAsync(DateOnly date, CancellationToken cancellationToken = default) =>
+        LoadAsync(date, null, cancellationToken);
+
+    public Task<WorkdayResult> LoadEntryAsync(DateOnly date, Guid id, CancellationToken cancellationToken = default) =>
+        LoadAsync(date, id, cancellationToken);
+
+    private Task<WorkdayResult> LoadAsync(DateOnly date, Guid? requiredEntryId, CancellationToken cancellationToken) =>
         ExecuteAsync(async () =>
         {
             if (date > localToday())
@@ -54,6 +60,12 @@ public sealed class WorkdayService(IWorkEntryStore store, Func<DateOnly> localTo
             }
 
             var entries = await store.ReadAsync(date, cancellationToken);
+
+            if (requiredEntryId.HasValue && !entries.Any(entry => entry.Id == requiredEntryId.Value))
+            {
+                return WorkdayResult.Failure(WorkdayFailure.NotFound);
+            }
+
             Snapshot = new WorkdaySnapshot(date, Array.AsReadOnly(entries.ToArray()));
 
             return WorkdayResult.Success();

@@ -236,20 +236,20 @@ No schema or data-path migration is intended. Existing version-1 stores remain r
 
 #### Automated
 
-- [x] 1.1 Release solution build succeeds: `dotnet build TimesheetAssistant.sln -c Release`.
-- [x] 1.2 Pure tests pass, including history state and existing workday regressions: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release`.
-- [x] 1.3 `git diff --check` passes; schema version, Windows target and pure-test dependency boundaries are preserved.
+- [x] 1.1 Release solution build succeeds: `dotnet build TimesheetAssistant.sln -c Release`. — dcd3a84
+- [x] 1.2 Pure tests pass, including history state and existing workday regressions: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release`. — dcd3a84
+- [x] 1.3 `git diff --check` passes; schema version, Windows target and pure-test dependency boundaries are preserved. — dcd3a84
 
 ### Phase 2: History and Editor on One Screen
 
 #### Automated
 
-- [ ] 2.1 Release solution build and pure tests pass after UI composition and helper changes.
-- [ ] 2.2 `git diff --check` passes and existing desktop tests compile with scoped editor selectors.
+- [x] 2.1 Release solution build and pure tests pass after UI composition and helper changes.
+- [x] 2.2 `git diff --check` passes and existing desktop tests compile with scoped editor selectors.
 
 #### Manual
 
-- [ ] 2.3 Author confirms the shared screen shows Today separately, readable complete history and totals, direct cross-day Edit, Add entry for today, keyboard operation and cancelled draft discard without losing input or loaded history.
+- [x] 2.3 Author confirms the shared screen shows Today separately, readable complete history and totals, direct cross-day Edit, Add entry for today, keyboard operation and cancelled draft discard without losing input or loaded history.
 
 ### Phase 3: Desktop Verification and Persistence Evidence
 

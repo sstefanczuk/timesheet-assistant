@@ -168,12 +168,12 @@ public sealed class WorkdayStorageTests
             {
                 launch.RecordStage("test-owned SQLite write lock acquired");
                 await screen.Button("Save").ClickAsync();
-                await Expect(launch.Page.GetByRole(AriaRole.Alert).Filter(new() { HasText = "Could not save this entry" }))
+                await Expect(screen.Alerts.Filter(new() { HasText = "Could not save this entry" }))
                     .ToBeVisibleAsync(new() { Timeout = launch.UiTimeoutMilliseconds });
                 await Expect(screen.Field("Item title")).ToHaveValueAsync("Unsaved title");
                 await Expect(screen.Field("Work description (optional)")).ToHaveValueAsync("Kept draft");
                 await Expect(screen.Field("Duration")).ToHaveValueAsync("2h");
-                await Expect(launch.Page.GetByRole(AriaRole.Status)).ToHaveCountAsync(0);
+                await Expect(screen.Status).ToHaveCountAsync(0);
                 await screen.EntriesAsync(["LOCK-1", "Committed title", "Original", "1h"]);
                 await screen.TotalsAsync("1h", "Remaining: 6h 12m");
                 transaction.Rollback();

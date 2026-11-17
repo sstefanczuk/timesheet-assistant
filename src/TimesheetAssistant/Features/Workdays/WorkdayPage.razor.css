@@ -6,3 +6,4 @@ td, th { overflow-wrap: anywhere; }
 .duration { white-space: nowrap; }
 .entry-actions { min-width: 9rem; }
 .entry-actions button { margin: .15rem; }
+#selected-day-editor { scroll-margin-top: 1rem; margin-block: 2rem; }

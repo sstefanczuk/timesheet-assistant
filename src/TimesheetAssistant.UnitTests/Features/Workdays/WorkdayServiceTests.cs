@@ -225,6 +225,47 @@ public class WorkdayServiceTests
         service.Snapshot!.Date.ShouldBe(_today);
     }
 
+    [Fact]
+    public async Task Loading_an_exact_entry_publishes_its_complete_destination_day()
+    {
+        // Arrange
+        var store = new FakeWorkEntryStore();
+        var service = await DayWithTwoRepeatedTicketsAsync(store);
+        var date = _today.AddDays(-1);
+        var first = await store.AddAsync(date, new("T-1", "First", "", 1));
+        var requested = await store.AddAsync(date, new("T-1", "Exact destination", "Details", 2));
+
+        // Act
+        var result = await service.LoadEntryAsync(date, requested.Id);
+
+        // Assert
+        result.IsSuccess.ShouldBeTrue();
+        service.Snapshot!.Date.ShouldBe(date);
+        service.Snapshot.Entries.ShouldBe(new[] { first, requested });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Unavailable_destination_entry_preserves_the_previous_editor_snapshot(bool storageFailure)
+    {
+        // Arrange
+        var store = new FakeWorkEntryStore();
+        var service = await DayWithTwoRepeatedTicketsAsync(store);
+        var previous = service.Snapshot;
+        var destination = _today.AddDays(-1);
+        await store.AddAsync(destination, new("OTHER-1", "Another entry", "", 1));
+        store.Fail = storageFailure;
+
+        // Act
+        var result = await service.LoadEntryAsync(destination, Guid.NewGuid());
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.FailureReason.ShouldBe(storageFailure ? WorkdayFailure.Storage : WorkdayFailure.NotFound);
+        service.Snapshot.ShouldBeSameAs(previous);
+    }
+
     private static WorkdayService CreateService(FakeWorkEntryStore? store = null) => new(store ?? new(), () => _today);
 
     private static async Task<WorkdayService> DayWithTwoRepeatedTicketsAsync(FakeWorkEntryStore? store = null)
