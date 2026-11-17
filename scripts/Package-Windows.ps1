@@ -34,7 +34,8 @@ if (-not (Test-Path -LiteralPath (Join-Path $publish 'TimesheetAssistant.exe')))
 Timesheet Assistant $Version
 Commit: $Commit
 
-Technical preview with workday recording, editing, deletion and local SQLite storage.
+Technical preview with workday recording, editing, deletion, saved-entry history
+and local SQLite storage. Today is separate; load earlier nonempty days as needed.
 Target: Windows 11 x64. Unsigned application.
 Extract the entire ZIP into its own directory and run TimesheetAssistant.exe.
 Keep all files together. No SDK, Visual Studio, .NET or Windows App SDK installation
@@ -45,7 +46,7 @@ Clean-machine compatibility has not been verified. Developer-machine launch chec
 are recorded separately in the deployment plan. SmartScreen or device policy may
 warn about or block unsigned downloads. This preview has no automatic updater.
 Saved entries are stored in %LOCALAPPDATA%\TimesheetAssistant, outside this folder.
-Save before closing; unsaved drafts are not recovered. Summaries and integrations
+Save before closing; unsaved drafts are not recovered. Copying entries, summaries and integrations
 are not implemented. Local verification does not establish desktop CI acceptance.
 "@ | Set-Content -LiteralPath (Join-Path $publish 'README.txt') -Encoding utf8
 
@@ -57,7 +58,8 @@ $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant
 @"
 # Timesheet Assistant $Version
 
-Technical prerelease with persistent workday recording; the full MVP is incomplete.
+Technical prerelease with persistent workday recording and saved-entry history;
+the full MVP is incomplete.
 
 - Commit: $Commit
 - Application download: TimesheetAssistant-$Version-win-x64.zip
@@ -65,6 +67,8 @@ Technical prerelease with persistent workday recording; the full MVP is incomple
 - Extract the full ZIP and run TimesheetAssistant.exe; see README.txt inside.
 - The automatic source archives are not runnable application downloads.
 - Local SQLite storage; no cloud backend, updater or clean-machine verification.
+- Browse Today and earlier saved days, load older history and edit exact saved entries.
+- Copying entries, summaries and integrations are not implemented.
 - Pure rule tests run before packaging. Desktop CI acceptance remains deferred.
 - Local desktop and author acceptance evidence is recorded separately for each change.
 

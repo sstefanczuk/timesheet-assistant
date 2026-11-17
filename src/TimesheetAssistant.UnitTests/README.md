@@ -8,6 +8,13 @@ dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj
 
 Tests under Features/Workdays exercise shared TimesheetAssistant.Core production rules: duration grammar and formatting, normalized fields, local-date validation, totals and service CRUD/failure behavior through an in-memory fake store. The suite uses no Playwright, WebView2, EXE, native SQLite or real storage. Every test uses explicit Arrange/Act/Assert sections. Desktop workflows and actual persistence belong to the separate TimesheetAssistant.UiTests project.
 
+History tests cover the initial three nonempty dates, one-day paging, separate
+Today, retained-range refresh/refill, immutable snapshots, cancellation, serialized
+operations and local-date rollover. Exact-identity editor loading preserves the
+previous snapshot when an entry is missing or storage fails. These fake-store
+tests verify orchestration; actual SQLite selection, persistence and compatibility
+with the prior S-01 package are verified only by UiTests.
+
 CI runs this project in Release before packaging:
 
 ```powershell

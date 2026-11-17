@@ -5,19 +5,31 @@ WebView2 Evergreen Runtime. Tests launch the real unpackaged Release EXE. No MAU
 project reference, web server or separate Chromium installation is needed.
 Missing configuration or EXE fails rather than skips the suite.
 
-From the repository root, build Release and run the pure UnitTests project before
-packaging with `scripts/Package-Windows.ps1`. Set the absolute published EXE only
-for the desktop test runner, restoring the caller environment afterward:
+From the repository root, build Release, run pure UnitTests and package sequentially.
+Do not overlap a build with publishing. Use fresh version/build numbers and retain
+the accepted S-01 `artifacts/publish-0.1.0-preview.111402/TimesheetAssistant.exe`
+(source `5622cbd00bd258b509353493eac5c57356708c4a`) for compatibility verification.
+Set both absolute EXE paths only for the desktop runner and restore the caller's
+environment afterward. Replace the new-version/build placeholders before running:
 
 ```powershell
+dotnet build TimesheetAssistant.sln -c Release
+if ($LASTEXITCODE -ne 0) { throw 'Release build failed.' }
+dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj -c Release --no-build
+if ($LASTEXITCODE -ne 0) { throw 'Pure verification failed.' }
+./scripts/Package-Windows.ps1 -Version '0.1.0-preview.<new-number>' -BuildNumber <new-build-number> -Commit (git rev-parse HEAD)
+
 $previous = $env:TIMESHEET_ASSISTANT_TEST_APP
+$previousBaseline = $env:TIMESHEET_ASSISTANT_PREVIOUS_TEST_APP
 try {
     $env:TIMESHEET_ASSISTANT_TEST_APP = Join-Path (Get-Location) 'artifacts/publish-<version>/TimesheetAssistant.exe'
+    $env:TIMESHEET_ASSISTANT_PREVIOUS_TEST_APP = Join-Path (Get-Location) 'artifacts/publish-0.1.0-preview.111402/TimesheetAssistant.exe'
     dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj -c Release --logger trx
     if ($LASTEXITCODE -ne 0) { throw 'Desktop verification failed.' }
 }
 finally {
     $env:TIMESHEET_ASSISTANT_TEST_APP = $previous
+    $env:TIMESHEET_ASSISTANT_PREVIOUS_TEST_APP = $previousBaseline
 }
 ```
 
@@ -67,6 +79,35 @@ followed by Retry, and failed update under a test-owned SQLite transaction.
 Only failure fixtures use direct database preparation; ordinary entries are saved
 through the visible UI. Native SQLite is a UiTests dependency for bounded failure
 setup, never a UnitTests dependency.
+
+`WorkEntryHistoryTests` cover empty and one/two-day history, Today/add-from-scratch,
+six sparse dates including Saturday and multi-year-old work, full field values,
+duplicate-ticket identities/creation order, daily totals, initial three dates,
+one complete day per append, exhaustion, cross-day editing, cancelled draft discard,
+last-entry deletion with the retained inclusive boundary, correct further paging
+and restart with committed changes and the initial window. A test-owned
+`FileShare.None` database handle induces an actual read failure after paging;
+the scenario requires an error/retry and unchanged complete groups/cursor,
+releases the handle in finally, then verifies successful retry. A normal reserved
+SQLite write transaction would not establish that reads were blocked.
+
+`WorkEntryHistoryUpgradeTests` launch the configured prior EXE and create all
+baseline entries through its legacy UI, capture their exact IDs/order, completely
+dispose its owned process job, then launch the new package against the same
+scenario-owned data. They verify every complete history group, further paging,
+new writes and another restart. A missing, relative or nonexistent
+`TIMESHEET_ASSISTANT_PREVIOUS_TEST_APP` fails this dedicated test; it never skips
+compatibility verification. The variable is read by the runner only and does not
+select an ordinary application data directory. The existing copied-application
+scenario remains the separate folder-independence check; copying the new binaries
+does not count as old-to-new compatibility.
+
+Upgrade sessions retain synthetic `upgrade-before.png` and `upgrade-after.png`
+screenshots in their normal per-launch artifact directories for author review.
+Logs identify the baseline version/source and successful counts. Record the new
+package/source provenance, actual TRX counts, cleanup results and author acceptance
+in `context/changes/browse-entry-history/verification.md`. Successful local runs
+do not establish desktop CI or clean-device acceptance.
 
 Date selection waits for the rendered snapshot's `data-work-date` and idle
 `aria-busy` state, not just the browser input's echoed value. Successful saves

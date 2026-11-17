@@ -244,21 +244,21 @@ No schema or data-path migration is intended. Existing version-1 stores remain r
 
 #### Automated
 
-- [x] 2.1 Release solution build and pure tests pass after UI composition and helper changes.
-- [x] 2.2 `git diff --check` passes and existing desktop tests compile with scoped editor selectors.
+- [x] 2.1 Release solution build and pure tests pass after UI composition and helper changes. — d6df483
+- [x] 2.2 `git diff --check` passes and existing desktop tests compile with scoped editor selectors. — d6df483
 
 #### Manual
 
-- [x] 2.3 Author confirms the shared screen shows Today separately, readable complete history and totals, direct cross-day Edit, Add entry for today, keyboard operation and cancelled draft discard without losing input or loaded history.
+- [x] 2.3 Author confirms the shared screen shows Today separately, readable complete history and totals, direct cross-day Edit, Add entry for today, keyboard operation and cancelled draft discard without losing input or loaded history. — d6df483
 
 ### Phase 3: Desktop Verification and Persistence Evidence
 
 #### Automated
 
-- [ ] 3.1 Sequential Release build and pure UnitTests succeed before creating a fresh package with `scripts/Package-Windows.ps1`.
-- [ ] 3.2 Full UiTests against the fresh `artifacts/publish-<version>/TimesheetAssistant.exe`, with the identified prior package configured, exits zero and TRX reports executed tests with no failures/skips; history, upgrade and existing S-01 scenarios pass and owned process/data cleanup completes.
-- [ ] 3.3 Dependency audit and `git diff --check` pass; verification records package provenance and actual results without claiming desktop CI or clean-device acceptance.
+- [x] 3.1 Sequential Release build and pure UnitTests succeed before creating a fresh package with `scripts/Package-Windows.ps1`.
+- [x] 3.2 Full UiTests against the fresh `artifacts/publish-<version>/TimesheetAssistant.exe`, with the identified prior package configured, exits zero and TRX reports executed tests with no failures/skips; history, upgrade and existing S-01 scenarios pass and owned process/data cleanup completes.
+- [x] 3.3 Dependency audit and `git diff --check` pass; verification records package provenance and actual results without claiming desktop CI or clean-device acceptance.
 
 #### Manual
 
-- [ ] 3.4 Author confirms browsing, loading older history, direct editing, adding from scratch and retained committed history after reopening the identified new package; the old-to-new isolated-data demonstration preserves entries.
+- [x] 3.4 Author confirms browsing, loading older history, direct editing, adding from scratch and retained committed history after reopening the identified new package; the old-to-new isolated-data demonstration preserves entries.
