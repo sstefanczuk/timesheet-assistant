@@ -1,10 +1,10 @@
 ---
 change_id: browse-entry-history
 title: Browse entry history
-status: implemented
+status: archived
 created: 2026-11-15
-updated: 2026-11-17
-archived_at: null
+updated: 2026-11-20
+archived_at: 2026-11-20T14:36:58Z
 ---
 
 ## Notes
