@@ -32,7 +32,7 @@ Add `btn-sm` for compact table-row actions. Bootstrap spacing utilities such as 
 
 ## Colors and themes
 
-- `--accent` is the shared accent for primary buttons, links, focus, branding and the active menu indicator. It is defined once in `app.css`; the current value is `#FB9900`.
+- `--accent` is the shared accent for primary buttons, links, focus, branding and the active menu indicator. It is defined once in `app.css`; the current value is `#f29500`.
 - Theme classes `.theme-dark` and `.theme-light` define tokens including `--background`, `--sidebar`, `--surface`, `--surface-raised`, `--text`, `--muted`, `--border`, `--secondary-bg`, `--danger` and `--success`. The dark theme is the default; Settings changes the locally saved preference.
 - Primary button text is currently white on the accent. This combination has limited contrast; assess readability in both themes when changing colors or typography.
 - Use tokens instead of hard-coded feature colors. Keep error and success messages understandable without color alone.

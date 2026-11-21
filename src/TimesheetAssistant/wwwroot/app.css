@@ -1,5 +1,5 @@
 html, body { margin: 0; font-family: "Segoe UI", sans-serif; font-size: 13px; }
-:root { --accent: #FB9900; }
+:root { --accent: #f29500; }
 .theme-dark { color-scheme: dark; --background: #202124; --sidebar: #18191b; --surface: #292b2f; --surface-raised: #34363b; --text: #f0f0f0; --muted: #c3c5ca; --border: #5c6068; --secondary-bg: #41444a; --danger: #ffabab; --success: #9cdea9; }
 .theme-light { color-scheme: light; --background: #ffffff; --sidebar: #f4f4f3; --surface: #ffffff; --surface-raised: #f2f2f1; --text: #252527; --muted: #555960; --border: #a9adb3; --secondary-bg: #e7e8e9; --danger: #a51d27; --success: #176a34; }
 h1, h2, h3, h4 { color: var(--text); line-height: 1.3; font-weight: 650; }
