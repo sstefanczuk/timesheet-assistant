@@ -1,4 +1,5 @@
-.history-section { margin-block: 2rem; border-top: 1px solid #dee2e6; padding-top: 1.5rem; }
+.history-section { margin-block: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+.today-section { margin-top: 0; border-top: 0; padding-top: 0; }
 .history-day { margin-block: 1.5rem; }
 .description { white-space: pre-wrap; overflow-wrap: anywhere; }
 td, th { overflow-wrap: anywhere; }

@@ -1,7 +1,9 @@
-.page { display: flex; flex-direction: column; min-height: 100vh; }
+.page { display: flex; flex-direction: column; min-height: 100vh; background: var(--background); color: var(--text); }
 main { flex: 1; min-width: 0; }
-.sidebar { background: #17355a; }
+.sidebar { background: var(--sidebar); border-bottom: 1px solid var(--border); }
+.content { padding: 1.5rem; max-width: 100rem; }
 @media (min-width: 900px) {
     .page { flex-direction: row; }
-    .sidebar { width: 220px; flex-shrink: 0; }
+    .sidebar { width: 219px; flex-shrink: 0; border-bottom: 0; border-right: 1px solid var(--border); }
+    .content { padding: 2rem; }
 }

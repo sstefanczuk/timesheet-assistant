@@ -1,7 +1,7 @@
 ---
 change_id: redesign-entry-experience
 title: Redesign entry experience and application UI style
-status: planned
+status: implementing
 created: 2026-11-20
 updated: 2026-11-20
 archived_at: null

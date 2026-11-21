@@ -1,2 +1,6 @@
-.brand { padding: 1rem 1.5rem; color: white; font-size: 1.1rem; font-weight: 600; }
-.current-page { display: block; margin: .5rem 1rem; padding: .75rem; border-radius: .25rem; background: #ffffff30; color: white; }
+.brand { display: flex; align-items: center; gap: .5rem; padding: 1.25rem 1rem; color: var(--accent); font-size: 1.1rem; font-weight: 700; letter-spacing: .02em; }
+.brand svg { width: 1.35rem; height: 1.35rem; flex-shrink: 0; }
+nav ::deep a { display: flex; align-items: center; gap: .65rem; margin: 0 .6rem; padding: .6rem .75rem; border-left: 3px solid transparent; color: var(--text); text-decoration: none; font-weight: 600; }
+nav ::deep svg { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+nav ::deep a:hover { background: var(--surface-raised); }
+nav ::deep a.active { border-left-color: var(--accent); background: var(--surface-raised); }

@@ -2,11 +2,10 @@
 @inject WorkdayService Service
 @inject WorkEntryHistoryService HistoryService
 
-<PageTitle>Workday | Timesheet Assistant</PageTitle>
+<PageTitle>Timesheet</PageTitle>
 
 <div inert="@(_confirmation is not null)">
-    <h1>Workday</h1>
-    <p>Record your work and track your daily target of 7h 12m.</p>
+    <TimesheetAssistant.Components.PageHeader Title="Timesheet" />
 
     <WorkEntryHistory IsToday="true" Snapshot="HistoryService.Snapshot" Loading="_historyBusy" Error="@_historyError"
                       Disabled="_busy" ShareTodayEntries="ShareTodayEntries"

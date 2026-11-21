@@ -156,12 +156,12 @@ Schemat wpisów pozostaje bez zmian. Brak preferencji motywu oznacza ciemny moty
 
 #### Automated
 
-- [ ] 1.1 Rozwiązanie buduje się: `dotnet build TimesheetAssistant.sln`.
-- [ ] 1.2 Testy jednostkowe przechodzą: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`.
+- [x] 1.1 Rozwiązanie buduje się: `dotnet build TimesheetAssistant.sln`.
+- [x] 1.2 Testy jednostkowe przechodzą: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`.
 
 #### Manual
 
-- [ ] 1.3 W opublikowanej aplikacji autor sprawdza oba motywy, nazwę `Timesheet` w menu i nagłówku, brak usuniętego opisu, wyraźnie mniejszą czytelną typografię, kontrast, fokus, wąskie i szerokie okno oraz zachowanie wybranego motywu po restarcie.
+- [x] 1.3 W opublikowanej aplikacji autor sprawdza oba motywy, nazwę `Timesheet` w menu i nagłówku, brak usuniętego opisu, wyraźnie mniejszą czytelną typografię, kontrast, fokus, wąskie i szerokie okno oraz zachowanie wybranego motywu po restarcie.
 
 ### Phase 2: Tabela i formularz
 

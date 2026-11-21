@@ -26,7 +26,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
     public async Task ReadyAsync()
     {
         application.RecordStage("workday editor ready");
-        await Expect(_page.GetByRole(AriaRole.Heading, new() { Name = "Workday", Exact = true })).ToBeVisibleAsync();
+        await Expect(_page.GetByRole(AriaRole.Heading, new() { Name = "Timesheet", Exact = true })).ToBeVisibleAsync();
         await Expect(Button("Save")).ToBeEnabledAsync();
         await Expect(DailyTotals).ToHaveAttributeAsync("aria-busy", "false", new() { Timeout = application.UiTimeoutMilliseconds });
         await Expect(_page.GetByRole(AriaRole.Region, new() { Name = "Earlier days", Exact = true }))

@@ -54,7 +54,7 @@ North star oznacza tutaj najmniejszy kompletny przepływ, który potwierdza gł�
 | --- | --- | --- | --- | --- | --- |
 | S-01 | record-persistent-workday | Użytkownik może wybrać datę, dodawać, edytować i usuwać osobne wpisy pracy oraz widzieć sumę, brakujący czas lub przekroczenie 7 h 12 min; wpisy pozostają po restarcie. | — | FR-002, FR-005, FR-007; Non-Functional Requirements | done |
 | S-07 | browse-entry-history | Użytkownik po otwarciu aplikacji widzi wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy, osobno dzisiaj i możliwość dodania wpisu od zera. Może doładować starszy dzień i przeglądać historię bez limitu retencji; upływ czasu ani aktualizacja aplikacji nie usuwa historii. Przy braku wpisów widzi pusty stan i możliwość dodania nowego. | S-01 | FR-002, FR-006, FR-011; Non-Functional Requirements | done |
-| S-09 | redesign-entry-experience | Użytkownik korzysta ze spójnego wizualnie interfejsu i wygodnego przepływu przeglądania historii oraz dodawania wpisów na jednej stronie. | S-07 | FR-002, FR-006; Non-Functional Requirements | planning |
+| S-09 | redesign-entry-experience | Użytkownik korzysta ze spójnego wizualnie interfejsu i wygodnego przepływu przeglądania historii oraz dodawania wpisów na jednej stronie. | S-07 | FR-002, FR-006; Non-Functional Requirements | in-progress |
 | S-08 | copy-earlier-day-entries | Użytkownik może skopiować wybrane wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy i doładować kolejny starszy dzień; może bezpośrednio skopiować pojedynczy wpis na dzisiaj lub wybrać inny dzień docelowy. Kopie są niezależne od oryginału i można je edytować przed podsumowaniem. | S-09 | FR-006 | proposed |
 | S-02 | prepare-dual-system-summaries | Użytkownik może otworzyć osobne podsumowania kompletnego dnia i kopiować teksty do Jiry i MyWork; dodatkowe 48 min otrzymuje najdłuższy pojedynczy wpis, przy remisie pierwszy zapisany. | S-08 | US-01, FR-007, FR-008 | proposed |
 | S-03 | track-outstanding-days | Użytkownik może zobaczyć zaległe dni robocze od najstarszego, osobno dzisiaj, wybrać dzień do uzupełnienia i oznaczyć dzień rozliczony wcześniej bez odtwarzania wpisów; starsze nierozliczone dni pozostają widoczne. | S-01 | FR-001, FR-002 | proposed |
@@ -129,7 +129,7 @@ Stan zbadany w kodzie i dokumentach, potwierdzony przez użytkownika; zapisany 2
 - **Blockers:** —
 - **Unknowns:** Styl, kolorystyka i szczegóły przepływu wymagają wypracowania z użytkownikiem.
 - **Risk:** Zmiany interfejsu nie mogą naruszyć istniejących operacji na wpisach ani trwałości danych; wymagają lokalnej weryfikacji rzeczywistej aplikacji.
-- **Status:** planning
+- **Status:** in-progress
 
 ### S-08: Kopiowanie wcześniejszych wpisów
 

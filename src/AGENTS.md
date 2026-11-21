@@ -2,6 +2,8 @@
 
 Use English for all project and code content under `src/`, including identifiers, comments, documentation, README files, test names, configuration descriptions, and user-facing text. Apply this rule to new files and updates to existing files.
 
+For UI changes, follow [UI Playbook](TimesheetAssistant/UI-PLAYBOOK.md). Reuse its components, styles and theme tokens; update the playbook when an agreed UI convention changes.
+
 ## Feature-oriented organization
 
 Organize product code by feature under `Features/<FeatureName>/` within each applicable project. Keep a feature's Razor pages/components, form models, domain types, contracts, services and persistence adapters together in its feature folder, subject to project dependency boundaries. Mirror feature folders in test projects. Choose names from actual product responsibilities; examples in conversations are not prescribed feature names.

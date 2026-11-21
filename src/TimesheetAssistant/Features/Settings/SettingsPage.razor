@@ -1,0 +1,27 @@
+@page "/settings"
+@using Microsoft.AspNetCore.Components.Web
+@inject ThemePreference Theme
+
+<PageTitle>Settings | Timesheet Assistant</PageTitle>
+
+<TimesheetAssistant.Components.PageHeader Title="Settings" />
+<section aria-labelledby="appearance-title">
+    <h2 id="appearance-title">Appearance</h2>
+    <p>Current theme: @(Theme.IsLight ? "Light" : "Dark")</p>
+    <button type="button" class="btn btn-outline-secondary" @onclick="ToggleTheme">
+        Switch to @(Theme.IsLight ? "dark" : "light") theme
+    </button>
+    @if (_saveFailed)
+    {
+        <p class="text-danger" role="status">Theme could not be saved for next time.</p>
+    }
+</section>
+
+@code {
+    private bool _saveFailed;
+
+    private void ToggleTheme()
+    {
+        _saveFailed = !Theme.Toggle();
+    }
+}

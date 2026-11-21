@@ -1,4 +1,4 @@
-<section aria-label="@(IsToday ? "Today" : "Earlier days")" class="history-section"
+<section aria-label="@(IsToday ? "Today" : "Earlier days")" class="history-section @(IsToday ? "today-section" : "")"
          aria-busy="@(Loading ? "true" : "false")" data-local-today="@DateText(Snapshot?.LocalToday)"
          data-oldest-boundary="@DateText(Snapshot?.OldestLoadedBoundary)">
     <h2>@(IsToday ? "Today" : "Earlier days")</h2>
