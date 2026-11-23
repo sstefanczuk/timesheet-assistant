@@ -6,21 +6,21 @@ namespace TimesheetAssistant.UiTests.Features.Workdays;
 
 internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
 {
-    public ILocator Earlier => application.Page.GetByRole(AriaRole.Region, new() { Name = "Earlier days", Exact = true });
+    public ILocator Earlier => application.Page.GetByRole(AriaRole.Region, new() { Name = "Entries", Exact = true });
 
-    public ILocator Today => application.Page.GetByRole(AriaRole.Region, new() { Name = "Today", Exact = true });
+    public ILocator Today => Earlier.Locator($"tbody[data-work-date=\u0027{DateText(DateOnly.FromDateTime(DateTime.Now))}\u0027]");
 
-    public ILocator Groups => Earlier.Locator("section[data-work-date]");
+    public ILocator Groups => Earlier.Locator($"tbody[data-work-date]:not([data-work-date=\u0027{DateText(DateOnly.FromDateTime(DateTime.Now))}\u0027])");
 
     public ILocator Button(string name) => Earlier.GetByRole(AriaRole.Button, new() { Name = name, Exact = true });
 
-    public ILocator Day(DateOnly date) => Earlier.Locator($"section[data-work-date='{DateText(date)}']");
+    public ILocator Day(DateOnly date) => Earlier.Locator($"tbody[data-work-date='{DateText(date)}']");
 
     public ILocator Row(DateOnly date, string id) => Day(date).Locator($"tr[data-entry-id='{id}']");
 
     public async Task<DateOnly> LocalTodayAsync()
     {
-        var displayed = await Today.GetAttributeAsync("data-local-today");
+        var displayed = await Earlier.GetAttributeAsync("data-local-today");
 
         return DateOnly.ParseExact(displayed!, "yyyy-MM-dd", CultureInfo.InvariantCulture);
     }
@@ -28,8 +28,6 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
     public async Task IdleAsync()
     {
         await Expect(Earlier).ToHaveAttributeAsync("aria-busy", "false", new() { Timeout = application.UiTimeoutMilliseconds });
-        await Expect(Today).ToHaveAttributeAsync("aria-busy", "false", new() { Timeout = application.UiTimeoutMilliseconds });
-        await Expect(new WorkdayScreen(application).Button("Save")).ToBeEnabledAsync();
     }
 
     public async Task DatesAsync(params DateOnly[] dates)
@@ -40,7 +38,7 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
         for (var index = 0; index < dates.Length; index++)
         {
             await Expect(Groups.Nth(index)).ToHaveAttributeAsync("data-work-date", DateText(dates[index]));
-            await Expect(Groups.Nth(index).GetByRole(AriaRole.Heading)).ToHaveTextAsync(
+            await Expect(Groups.Nth(index).Locator("time")).ToHaveTextAsync(
                 dates[index].ToString("D", CultureInfo.GetCultureInfo("en-US")));
         }
 
@@ -49,7 +47,7 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
 
     public async Task DayAsync(HistoryTestDay expected)
     {
-        var rows = Day(expected.Date).Locator("tbody tr");
+        var rows = Day(expected.Date).Locator("tr[data-entry-id]");
         await Expect(rows).ToHaveCountAsync(expected.Entries.Length);
 
         for (var index = 0; index < expected.Entries.Length; index++)
@@ -58,12 +56,12 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
 
             for (var column = 0; column < 4; column++)
             {
-                await Expect(rows.Nth(index).Locator("td").Nth(column)).ToHaveTextAsync(expected.Entries[index][column]);
+                await Expect(rows.Nth(index).Locator("td").Nth(column + 1)).ToHaveTextAsync(expected.Entries[index][column]);
             }
         }
 
-        await Expect(Day(expected.Date).Locator(":scope > p")).ToHaveTextAsync($"Total: {expected.Total}");
-        await Expect(Day(expected.Date).GetByRole(AriaRole.Button, new() { Name = "Delete", Exact = true })).ToHaveCountAsync(0);
+        await Expect(Day(expected.Date).Locator(".day-summary")).ToContainTextAsync($"Total: {expected.Total}");
+        await Expect(Day(expected.Date).GetByRole(AriaRole.Button, new() { Name = "Delete", Exact = true })).ToHaveCountAsync(expected.Entries.Length);
     }
 
     public async Task OlderAsync(params DateOnly[] expectedDates)
@@ -88,8 +86,8 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
     public async Task EditorAcknowledgedAsync(HistoryTestDay day, int entryIndex)
     {
         var editor = new WorkdayScreen(application);
-        await Expect(editor.DailyTotals).ToHaveAttributeAsync("data-work-date", DateText(day.Date));
-        await Expect(editor.Editor).ToHaveAttributeAsync("aria-busy", "false");
+        await Expect(editor.Field("Work date")).ToHaveValueAsync(DateText(day.Date));
+
         await Expect(editor.Editor.GetByRole(AriaRole.Heading, new() { Name = "Edit entry", Exact = true })).ToBeVisibleAsync();
         await Expect(editor.Field("Jira ID")).ToHaveValueAsync(day.Entries[entryIndex][0]);
         await Expect(editor.Field("Item title")).ToHaveValueAsync(day.Entries[entryIndex][1]);

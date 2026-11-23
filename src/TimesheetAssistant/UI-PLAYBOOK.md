@@ -16,7 +16,7 @@ Use a native `<button>` with `btn` and one variant class. Button labels are bold
 | Variant | Classes | Current appearance and use |
 | --- | --- | --- |
 | Primary | `btn btn-primary` | Accent background and white text; the main action, such as Save or Add entry. Hover darkens the button. |
-| Secondary | `btn btn-outline-secondary` | Muted filled background and border; supporting actions such as Cancel, Refresh history and switching theme. Hover uses the border color as the background. |
+| Secondary | `btn btn-outline-secondary` | Muted filled background and border; supporting actions such as Cancel, Refresh and switching theme. Hover uses the border color as the background. |
 | Outlined primary | `btn btn-outline-primary` | Neutral background and border; supporting actions such as Edit, Retry history and Load older day. Hover uses the accent background and white text. |
 | Outlined danger | `btn btn-outline-danger` | Danger-colored text and border; an action that starts a destructive operation, such as Delete. |
 | Danger | `btn btn-danger` | Bootstrap's filled danger style; currently used for confirmation-dialog actions. It is not customized by the application theme. |
@@ -33,7 +33,7 @@ Add `btn-sm` for compact table-row actions. Bootstrap spacing utilities such as 
 ## Colors and themes
 
 - `--accent` is the shared accent for primary buttons, links, focus, branding and the active menu indicator. It is defined once in `app.css`; the current value is `#f29500`.
-- Theme classes `.theme-dark` and `.theme-light` define tokens including `--background`, `--sidebar`, `--surface`, `--surface-raised`, `--text`, `--muted`, `--border`, `--secondary-bg`, `--danger` and `--success`. The dark theme is the default; Settings changes the locally saved preference.
+- Theme classes `.theme-dark` and `.theme-light` define tokens including `--background`, `--sidebar`, `--surface`, `--surface-raised`, `--text`, `--muted`, `--border`, `--secondary-bg`, `--danger`, `--success` and `--warning`. The dark theme is the default; Settings changes the locally saved preference.
 - Primary button text is currently white on the accent. This combination has limited contrast; assess readability in both themes when changing colors or typography.
 - Use tokens instead of hard-coded feature colors. Keep error and success messages understandable without color alone.
 
@@ -49,4 +49,8 @@ Add `btn-sm` for compact table-row actions. Bootstrap spacing utilities such as 
 - Preserve the visible keyboard focus style. Inputs use a thinner accent outline; disabled inputs use the raised surface token.
 - Use `alert alert-danger` for errors, `alert alert-warning` for warnings and `alert alert-light` for neutral summaries. Use `role="alert"` for relevant errors and `role="status"` or `aria-live` for status updates.
 - Wrap wide tables in `table-responsive`, use `table`, meaningful headers and a caption. Preserve horizontal access in narrow windows.
+- In the work-entry table, keep Date and Jira ID columns fixed-width and single-line; long Jira IDs are visually truncated with the full value available in the cell title.
+- Let the page content and work-entry table use the full available content width. Keep Date, Jira ID, Duration and Actions fixed-width; let Item title and Work description share the remaining width.
+- Place cross-page notifications and progress in the single-line global status strip at the bottom of the application. Keep page-specific validation and loading errors beside the affected content.
+- In daily work-entry summaries, use a green check only when the target is met exactly and a yellow warning when time is under or over target. Place the icon in a circular outline as the first item; align the date, total and remaining/excess text on a shared baseline.
 - Reuse the existing `WorkdayConfirmation` for its current workday confirmation flow. Dialogs must identify their title and message, support keyboard operation and manage focus when opened and closed; do not assume the existing component is a general-purpose dialog API.

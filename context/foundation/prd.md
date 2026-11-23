@@ -39,7 +39,7 @@ Primary persona: autor aplikacji — kontraktor rozliczający własny czas w sys
 ### Guardrails
 
 - Zapisane wpisy i wyniki są zachowane i dostępne przy kolejnym otwarciu aplikacji, z uwzględnieniem świadomych edycji, usunięć i potwierdzonego zastąpienia wpisów urlopem.
-- Aplikacja pokazuje dni wymagające uzupełnienia; dzień pozostaje zaległy do potwierdzenia przeniesienia wymaganych wpisów, również po wyjściu poza domyślne okno dwóch tygodni. Dni rozliczone wcześniej poza aplikacją można oznaczyć jako rozliczone bez odtwarzania wpisów. Dzisiaj jest pokazywane osobno jako dzień w toku.
+- Aplikacja pokazuje dni wymagające uzupełnienia; dzień pozostaje zaległy do potwierdzenia przeniesienia wymaganych wpisów, również po wyjściu poza domyślne okno dwóch tygodni. Dni rozliczone wcześniej poza aplikacją można oznaczyć jako rozliczone bez odtwarzania wpisów. Dzisiejsze wpisy są pokazywane w tabeli wpisów; nieukończony dzisiejszy dzień pozostaje dniem w toku.
 
 ## User Stories
 
@@ -79,8 +79,8 @@ Po otwarciu aplikacji użytkownik widzi zaległe dni do uzupełnienia, od najsta
 
 - FR-001: User can view outstanding weekdays from the previous and current week, plus older unresolved days, ordered from oldest to newest, and mark previously settled days as settled without recreating their entries. Priority: must-have
   > Socratic: Kontrargument: przy pierwszym uruchomieniu dni rozliczone wcześniej w obu systemach mogą wyglądać na zaległe. Decyzja: pozwolić oznaczyć dzień jako rozliczony bez odtwarzania wpisów.
-- FR-002: User can select an outstanding day or today to record work incrementally, with today displayed separately as a day in progress. Priority: must-have
-  > Socratic: Kontrargument: niepełny dzisiejszy dzień jest normalną pracą w toku, więc pokazywanie go jako zaległości byłoby mylące. Decyzja: dzisiaj pokazywać osobno jako dzień w toku.
+- FR-002: User can select an outstanding day or today to record work incrementally, with today available in the entries table as a day in progress. Priority: must-have
+  > Socratic: Kontrargument: niepełny dzisiejszy dzień jest normalną pracą w toku, więc pokazywanie go jako zaległości byłoby mylące. Decyzja S-09 (2026-11-21): dzisiejsze wpisy pokazywać w tabeli; dzisiaj pozostaje dniem w toku, a nie zaległością.
 - FR-003: User can manually change an individual day's type to a holiday or leave day, requiring 7 h 12 min on a special Jira task and no MyWork entry, with existing work entries replaced by a leave entry only after a warning and explicit confirmation. Priority: must-have
   > Socratic: Kontrargument: zmiana na urlop mogłaby przypadkowo zastąpić istniejące wpisy pracy. Decyzja: zastąpić wpisy wpisem urlopowym dopiero po ostrzeżeniu i potwierdzeniu.
 

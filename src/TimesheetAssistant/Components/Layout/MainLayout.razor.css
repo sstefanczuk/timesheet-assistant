@@ -1,9 +1,12 @@
 .page { display: flex; flex-direction: column; min-height: 100vh; background: var(--background); color: var(--text); }
 main { flex: 1; min-width: 0; }
 .sidebar { background: var(--sidebar); border-bottom: 1px solid var(--border); }
-.content { padding: 1.5rem; max-width: 100rem; }
+.content { width: 100%; padding: 1.5rem; }
+.global-status { min-height: 2rem; padding: .4rem 1rem; border-top: 1px solid var(--border); background: var(--surface); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (min-width: 900px) {
-    .page { flex-direction: row; }
+    .page { display: grid; grid-template-columns: 219px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
     .sidebar { width: 219px; flex-shrink: 0; border-bottom: 0; border-right: 1px solid var(--border); }
     .content { padding: 2rem; }
+    main { grid-column: 2; grid-row: 1; }
+    .global-status { grid-column: 1 / -1; grid-row: 2; }
 }

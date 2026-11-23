@@ -39,7 +39,7 @@ Timesheet Assistant rozwiązuje codzienne tarcie związane z rozproszonym i powi
 
 North star oznacza tutaj najmniejszy kompletny przepływ, który potwierdza główną wartość aplikacji.
 
-**S-02: Podsumowania Jiry i MyWork** — po zapisaniu dnia użytkownik otrzymuje poprawne teksty i sumy 7 h 12 min oraz 8 h z US-01. S-01 dostarcza potrzebne wpisy, S-07 pokazuje ostatnie dni po uruchomieniu, S-08 pozwala kopiować wpis na dzisiaj, a S-02 zamyka pierwszy przepływ podsumowaniami. Zalecana kolejność: S-01 → S-07 → S-09 → S-08 → S-02, następnie pozostałe funkcje według zależności, a na końcu powrót do F-01. Istniejąca lokalna ścieżka testów UI służy weryfikacji każdej funkcji; odłożone CI nie jest jej warunkiem wstępnym.
+**S-02: Podsumowania Jiry i MyWork** — po zapisaniu dnia użytkownik otrzymuje poprawne teksty i sumy 7 h 12 min oraz 8 h z US-01. S-01 dostarcza potrzebne wpisy, S-07 pokazuje ostatnie dni po uruchomieniu, S-09 umieszcza dzisiejsze wpisy w tej samej tabeli (decyzja 2026-11-21), S-08 pozwala kopiować wpis na dzisiaj, a S-02 zamyka pierwszy przepływ podsumowaniami. Zalecana kolejność: S-01 → S-07 → S-09 → S-08 → S-02, następnie pozostałe funkcje według zależności, a na końcu powrót do F-01. Istniejąca lokalna ścieżka testów UI służy weryfikacji każdej funkcji; odłożone CI nie jest jej warunkiem wstępnym.
 
 ## Verification during product development
 
@@ -54,10 +54,10 @@ North star oznacza tutaj najmniejszy kompletny przepływ, który potwierdza gł�
 | --- | --- | --- | --- | --- | --- |
 | S-01 | record-persistent-workday | Użytkownik może wybrać datę, dodawać, edytować i usuwać osobne wpisy pracy oraz widzieć sumę, brakujący czas lub przekroczenie 7 h 12 min; wpisy pozostają po restarcie. | — | FR-002, FR-005, FR-007; Non-Functional Requirements | done |
 | S-07 | browse-entry-history | Użytkownik po otwarciu aplikacji widzi wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy, osobno dzisiaj i możliwość dodania wpisu od zera. Może doładować starszy dzień i przeglądać historię bez limitu retencji; upływ czasu ani aktualizacja aplikacji nie usuwa historii. Przy braku wpisów widzi pusty stan i możliwość dodania nowego. | S-01 | FR-002, FR-006, FR-011; Non-Functional Requirements | done |
-| S-09 | redesign-entry-experience | Użytkownik korzysta ze spójnego wizualnie interfejsu i wygodnego przepływu przeglądania historii oraz dodawania wpisów na jednej stronie. | S-07 | FR-002, FR-006; Non-Functional Requirements | in-progress |
+| S-09 | redesign-entry-experience | Użytkownik przegląda dzisiejsze i wcześniejsze wpisy we wspólnej tabeli oraz dodaje i edytuje wpisy w formularzu; decyzja S-09 z 2026-11-21 zachowuje dzisiaj jako dzień w toku. | S-07 | FR-002, FR-006; Non-Functional Requirements | in-progress |
 | S-08 | copy-earlier-day-entries | Użytkownik może skopiować wybrane wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy i doładować kolejny starszy dzień; może bezpośrednio skopiować pojedynczy wpis na dzisiaj lub wybrać inny dzień docelowy. Kopie są niezależne od oryginału i można je edytować przed podsumowaniem. | S-09 | FR-006 | proposed |
 | S-02 | prepare-dual-system-summaries | Użytkownik może otworzyć osobne podsumowania kompletnego dnia i kopiować teksty do Jiry i MyWork; dodatkowe 48 min otrzymuje najdłuższy pojedynczy wpis, przy remisie pierwszy zapisany. | S-08 | US-01, FR-007, FR-008 | proposed |
-| S-03 | track-outstanding-days | Użytkownik może zobaczyć zaległe dni robocze od najstarszego, osobno dzisiaj, wybrać dzień do uzupełnienia i oznaczyć dzień rozliczony wcześniej bez odtwarzania wpisów; starsze nierozliczone dni pozostają widoczne. | S-01 | FR-001, FR-002 | proposed |
+| S-03 | track-outstanding-days | Użytkownik może zobaczyć zaległe dni robocze od najstarszego, wybrać dzień do uzupełnienia i pracować na dzisiejszych wpisach w tabeli oraz oznaczyć dzień rozliczony wcześniej bez odtwarzania wpisów; starsze nierozliczone dni pozostają widoczne. | S-01 | FR-001, FR-002 | proposed |
 | S-04 | confirm-day-transfers | Użytkownik może osobno potwierdzić lub cofnąć przeniesienie do każdego systemu; dzień znika z zaległości po wymaganych potwierdzeniach i wraca po ich cofnięciu, a edycja lub usunięcie wpisu resetuje oba potwierdzenia dnia. | S-02, S-03 | FR-005, FR-009, FR-010 | proposed |
 | S-05 | settle-holiday-and-leave | Użytkownik może zmienić typ pojedynczego dnia na święto lub urlop, uzyskać 7 h 12 min na specjalnym tasku Jiry i stan „nie dotyczy” dla MyWork; zastąpienie wpisów urlopem wymaga ostrzeżenia i jawnego potwierdzenia. | S-04 | FR-003, FR-009, FR-010 | proposed |
 | S-06 | reuse-entry-templates | Użytkownik może tworzyć, edytować i usuwać zapisane szablony oraz dodawać z nich wpisy; późniejsza zmiana szablonu nie zmienia istniejących wpisów. | S-01 | FR-004 | proposed |
@@ -121,7 +121,7 @@ Stan zbadany w kodzie i dokumentach, potwierdzony przez użytkownika; zapisany 2
 
 ### S-09: Styl interfejsu i przepływ wpisów
 
-- **Outcome:** Użytkownik korzysta ze spójnego wizualnie interfejsu i wygodnego przepływu przeglądania historii oraz dodawania wpisów na jednej stronie.
+- **Outcome:** Użytkownik przegląda dzisiejsze i wcześniejsze wpisy we wspólnej tabeli oraz dodaje i edytuje wpisy w formularzu; decyzja S-09 z 2026-11-21 zachowuje dzisiaj jako dzień w toku.
 - **Change ID:** redesign-entry-experience
 - **PRD refs:** FR-002, FR-006; Non-Functional Requirements
 - **Prerequisites:** S-07
@@ -157,7 +157,7 @@ Stan zbadany w kodzie i dokumentach, potwierdzony przez użytkownika; zapisany 2
 
 ### S-03: Wybór zaległego dnia
 
-- **Outcome:** Użytkownik może zobaczyć zaległe dni robocze od najstarszego, osobno dzisiaj, wybrać dzień do uzupełnienia i oznaczyć dzień rozliczony wcześniej bez odtwarzania wpisów; starsze nierozliczone dni pozostają widoczne.
+- **Outcome:** Użytkownik może zobaczyć zaległe dni robocze od najstarszego, wybrać dzień do uzupełnienia i pracować na dzisiejszych wpisach w tabeli oraz oznaczyć dzień rozliczony wcześniej bez odtwarzania wpisów; starsze nierozliczone dni pozostają widoczne.
 - **Change ID:** track-outstanding-days
 - **PRD refs:** FR-001, FR-002
 - **Prerequisites:** S-01

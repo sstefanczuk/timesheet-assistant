@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using TimesheetAssistant.Core.Features.Workdays;
 using TimesheetAssistant.Features.Workdays;
 using TimesheetAssistant.Features.Settings;
+using TimesheetAssistant.Components.Layout;
 
 namespace TimesheetAssistant;
 
@@ -20,6 +21,8 @@ public static class MauiProgram
 
 		builder.Services.AddMauiBlazorWebView();
 		builder.Services.AddSingleton<ThemePreference>();
+		builder.Services.AddSingleton<EntryDraft>();
+		builder.Services.AddSingleton<GlobalStatus>();
 		builder.Services.AddSingleton<StorageInitialization>();
 		builder.Services.AddSingleton<IWorkEntryStore>(services =>
 			services.GetRequiredService<StorageInitialization>().Store

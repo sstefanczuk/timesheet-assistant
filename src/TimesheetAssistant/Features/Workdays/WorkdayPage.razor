@@ -1,540 +1,265 @@
 @page "/"
+@implements IDisposable
 @inject WorkdayService Service
 @inject WorkEntryHistoryService HistoryService
+@inject EntryDraft Draft
+@inject TimesheetAssistant.Components.Layout.GlobalStatus GlobalStatus
+@inject IJSRuntime JS
 
 <PageTitle>Timesheet</PageTitle>
+<div inert="@(_delete is not null)">
+<TimesheetAssistant.Components.PageHeader Title="Timesheet" />
 
-<div inert="@(_confirmation is not null)">
-    <TimesheetAssistant.Components.PageHeader Title="Timesheet" />
-
-    <WorkEntryHistory IsToday="true" Snapshot="HistoryService.Snapshot" Loading="_historyBusy" Error="@_historyError"
-                      Disabled="_busy" ShareTodayEntries="ShareTodayEntries"
-                      AddToday="AddTodayAsync" EntrySelected="Edit" />
-
-    <section id="selected-day-editor" aria-label="Selected-day editor" aria-busy="@(_busy ? "true" : "false")">
-        <h2>Selected-day editor</h2>
-
-        <div class="mb-3 date-picker">
-            <label for="work-date" class="form-label">Work date</label>
-            <input @key="_dateInputVersion" id="work-date" type="date" class="form-control" value="@DateText(_date)"
-                   max="@DateText(Today)" @onchange="ChangeDateAsync" disabled="@_busy" aria-describedby="date-error" />
-            <div id="date-error" class="text-danger" role="alert">@_dateError</div>
-        </div>
-
-        @if (_busy)
-        {
-            <p role="status">@(_saving ? "Saving changes…" : "Loading entries…")</p>
-        }
-        @if (_error is not null)
-        {
-            <div class="alert alert-danger" role="alert">@_error</div>
-        }
-        @if (_status is not null && !_busy)
-        {
-            <p role="status" class="text-success">@_status</p>
-        }
-        @if (_snapshot is null)
-        {
-            @if (!_busy)
-            {
-                <button class="btn btn-primary" type="button" @onclick="() => LoadAsync(_date)">Retry loading entries</button>
-            }
-        }
+<div class="toolbar">
+    <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="OpenAdd">Add entry</button>
+    <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="RefreshAsync">Refresh</button>
+</div>
+<section aria-label="Entries" aria-busy="@(_busy ? "true" : "false")"
+         data-local-today="@(HistoryService.Snapshot is { } snapshot ? DateText(snapshot.LocalToday) : null)"
+         data-oldest-boundary="@(HistoryService.Snapshot?.OldestLoadedBoundary is { } boundary ? DateText(boundary) : null)">
+    @if (_busy) { <p role="status">Loading entries…</p> }
+    @if (_historyError is not null)
+    {
+        <div class="alert alert-warning" role="alert">@_historyError</div>
+        <button type="button" class="btn btn-outline-primary" disabled="@_busy" @onclick="RetryAsync">Retry history</button>
+    }
+    @if (HistoryService.Snapshot is { } history)
+    {
+        var days = history.Days.Prepend(history.Today).Where(day => day.Entries.Count > 0).OrderByDescending(day => day.Date).ToArray();
+        @if (days.Length == 0) { <p>No entries yet. Add your first entry.</p> }
         else
         {
-            <section aria-label="Daily totals" class="totals alert alert-light" aria-live="polite"
-                     aria-busy="@(_busy ? "true" : "false")" data-work-date="@DateText(_snapshot.Date)">
-                <span>Total: <strong>@DurationParser.Format(_snapshot.Totals.TotalMinutes)</strong></span>
-                @if (_snapshot.Totals.ExcessMinutes > 0)
-                {
-                    <span class="text-danger">Excess: <strong>@DurationParser.Format(_snapshot.Totals.ExcessMinutes)</strong></span>
-                }
-                else
-                {
-                    <span>Remaining: <strong>@DurationParser.Format(_snapshot.Totals.RemainingMinutes)</strong></span>
-                }
-            </section>
-
-            <section aria-labelledby="editor-title" class="mb-4">
-                <h2 id="editor-title">@(_editingId.HasValue ? "Edit entry" : "Add entry")</h2>
-                <form @onsubmit="SaveAsync" @onsubmit:preventDefault novalidate>
-                    <fieldset disabled="@_busy">
-                        <div class="mb-3">
-                            <label for="jira-id" class="form-label">Jira ID</label>
-                            <input @ref="_jiraInput" id="jira-id" class="form-control" @bind="_jiraId" @bind:event="oninput"
-                                   aria-required="true" aria-invalid="@(FieldError("JiraId") is not null ? "true" : "false")" aria-describedby="jira-error" />
-                            <div id="jira-error" class="text-danger" role="alert">@FieldError("JiraId")</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="item-title" class="form-label">Item title</label>
-                            <input id="item-title" class="form-control" @bind="_title" @bind:event="oninput"
-                                   aria-required="true" aria-invalid="@(FieldError("Title") is not null ? "true" : "false")" aria-describedby="title-error" />
-                            <div id="title-error" class="text-danger" role="alert">@FieldError("Title")</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="work-description" class="form-label">Work description (optional)</label>
-                            <textarea id="work-description" class="form-control" rows="2" @bind="_description" @bind:event="oninput"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="duration" class="form-label">Duration</label>
-                            <input id="duration" class="form-control" @bind="_duration" @bind:event="oninput"
-                                   aria-required="true" aria-invalid="@(FieldError("Duration") is not null ? "true" : "false")" aria-describedby="duration-help duration-error" />
-                            <div id="duration-help" class="form-text">For example: 1h, 30m or 6h 12m. Enter 1 minute to 24 hours.</div>
-                            <div id="duration-error" class="text-danger" role="alert">@FieldError("Duration")</div>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Save</button>
-                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CancelEditor">Cancel</button>
-                    </fieldset>
-                </form>
-            </section>
-
-            <section aria-labelledby="entries-title">
-                <h2 id="entries-title">Saved entries</h2>
-                @if (_snapshot.Entries.Count == 0)
-                {
-                    <p>No entries for this date. Add your first entry above.</p>
-                }
-                else
-                {
-                    <div class="table-responsive">
-                        <table class="table align-middle">
-                            <caption>Entries for @_date.ToString("D", System.Globalization.CultureInfo.GetCultureInfo("en-US")), in creation order</caption>
-                            <thead><tr><th scope="col">Jira ID</th><th scope="col">Item title</th><th scope="col">Work description</th><th scope="col">Duration</th><th scope="col">Actions</th></tr></thead>
-                            <tbody>
-                                @foreach (var entry in _snapshot.Entries)
-                                {
-                                    <tr @key="entry.Id" data-entry-id="@entry.Id">
-                                        <td>@entry.JiraId</td><td>@entry.Title</td><td class="description">@entry.Description</td><td class="duration">@DurationParser.Format(entry.DurationMinutes)</td>
-                                        <td class="entry-actions">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" disabled="@_busy" @onclick="() => Edit(entry)">Edit</button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => RequestDelete(entry)">Delete</button>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-            </section>
+            <div class="table-responsive">
+                <table class="table align-middle entries-table">
+                    <thead><tr><th scope="col" class="entry-date">Date</th><th scope="col" class="entry-jira">Jira ID</th><th scope="col">Item title</th><th scope="col">Work description</th><th scope="col" class="entry-duration">Duration</th><th scope="col" class="entry-actions">Actions</th></tr></thead>
+                    @foreach (var day in days)
+                    {
+                        var statusClass = day.Totals.RemainingMinutes == 0 && day.Totals.ExcessMinutes == 0 ? "success" : "warning";
+                        var statusIcon = statusClass == "success" ? "✓" : "⚠";
+                        <tbody data-work-date="@DateText(day.Date)">
+                            <tr class="day-summary">
+                                <th scope="rowgroup" colspan="6">
+                                    <div class="day-summary-content">
+                                        <span class="status-icon status-@statusClass" aria-hidden="true">@statusIcon</span>
+                                        <time datetime="@DateText(day.Date)">@DisplayDate(day.Date)</time>
+                                        <span class="day-total">Total: @DurationParser.Format(day.Totals.TotalMinutes)</span>
+                                        <span class="day-balance">· @(day.Totals.ExcessMinutes > 0 ? $"Excess: {DurationParser.Format(day.Totals.ExcessMinutes)}" : $"Remaining: {DurationParser.Format(day.Totals.RemainingMinutes)}")</span>
+                                    </div>
+                                </th>
+                            </tr>
+                            @foreach (var entry in day.Entries.OrderBy(entry => entry.CreationOrder))
+                            {
+                                <tr @key="entry.Id" data-entry-id="@entry.Id">
+                                    <td class="entry-date" title="@DateText(day.Date)">@DateText(day.Date)</td><td class="entry-jira" title="@entry.JiraId">@entry.JiraId</td><td>@entry.Title</td><td class="description">@entry.Description</td><td class="entry-duration">@DurationParser.Format(entry.DurationMinutes)</td>
+                                    <td class="entry-actions"><button type="button" class="btn btn-sm btn-outline-primary" disabled="@_busy" @onclick="() => OpenEdit(entry)">Edit</button> <button type="button" class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => RequestDelete(entry)">Delete</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    }
+                </table>
+            </div>
         }
-    </section>
-
-    <WorkEntryHistory Snapshot="HistoryService.Snapshot" Loading="_historyBusy" Error="@_historyError" Disabled="_busy"
-                      EntrySelected="Edit" Refresh="RefreshHistoryAsync" Retry="RetryHistoryAsync" LoadOlder="LoadOlderAsync" />
+        @if (history.HasOlder) { <button type="button" class="btn btn-outline-primary" disabled="@_busy" @onclick="LoadOlderAsync">Load older day</button> }
+        else { <p>All earlier days loaded.</p> }
+    }
+</section>
 </div>
 
-@if (_confirmation is not null)
+@if (_dialogOpen)
 {
-    <WorkdayConfirmation Title="@_confirmation.Title" Message="@_confirmation.Message" ConfirmText="@_confirmation.ConfirmText"
-                         Confirmed="ConfirmAsync" Cancelled="DismissConfirmation" />
+    <dialog @ref="_dialog" aria-labelledby="dialog-title" class="entry-dialog">
+        <h2 id="dialog-title">@(_editing is null ? "Add entry" : "Edit entry")</h2>
+        @if (_error is not null) { <div role="alert" class="alert alert-danger">@_error</div> }
+        <form @onsubmit="SaveAsync" @onsubmit:preventDefault novalidate>
+            <fieldset disabled="@_busy">
+                <div class="mb-3"><label for="work-date" class="form-label">Work date</label><input id="work-date" type="date" class="form-control" value="@_form.Date" @onchange="SetDate" max="@DateText(Today)" disabled="@(_editing is not null)" aria-describedby="date-error" /><div id="date-error" class="text-danger" role="alert">@FieldError("WorkDate")</div></div>
+                <div class="mb-3"><label for="jira-id" class="form-label">Jira ID</label><input id="jira-id" class="form-control" @bind="_form.JiraId" @bind:event="oninput" aria-required="true" aria-invalid="@(FieldError("JiraId") is not null ? "true" : "false")" aria-describedby="jira-error" /><div id="jira-error" class="text-danger" role="alert">@FieldError("JiraId")</div></div>
+                <div class="mb-3"><label for="item-title" class="form-label">Item title</label><input id="item-title" class="form-control" @bind="_form.Title" @bind:event="oninput" aria-required="true" aria-invalid="@(FieldError("Title") is not null ? "true" : "false")" aria-describedby="title-error" /><div id="title-error" class="text-danger" role="alert">@FieldError("Title")</div></div>
+                <div class="mb-3"><label for="work-description" class="form-label">Work description (optional)</label><textarea id="work-description" class="form-control" rows="2" @bind="_form.Description" @bind:event="oninput"></textarea></div>
+                <div class="mb-3"><label for="duration" class="form-label">Duration</label><input id="duration" class="form-control" @bind="_form.Duration" @bind:event="oninput" aria-required="true" aria-invalid="@(FieldError("Duration") is not null ? "true" : "false")" aria-describedby="duration-help duration-error" /><div id="duration-help" class="form-text">For example: 1h, 30m or 6h 12m. Enter 1 minute to 24 hours.</div><div id="duration-error" class="text-danger" role="alert">@FieldError("Duration")</div></div>
+                <button type="submit" class="btn btn-primary">Save</button> <button type="button" class="btn btn-outline-secondary" @onclick="DismissAsync">Cancel</button>
+            </fieldset>
+        </form>
+    </dialog>
+}
+@if (_delete is not null)
+{
+    <WorkdayConfirmation Title="Delete entry?" Message="@DeleteMessage" ConfirmText="Delete" Confirmed="DeleteAsync" Cancelled="CancelDelete" />
 }
 
 @code {
-    private DateOnly _date = Today;
-    private WorkdaySnapshot? _snapshot;
     private bool _busy;
-    private bool _saving;
-    private bool _historyBusy;
-    private string? _historyError;
     private bool _retryOlder;
+    private string? _historyError;
     private string? _error;
-    private string? _dateError;
-    private string? _status;
-    private Guid? _editingId;
-    private string _jiraId = string.Empty;
-    private string _title = string.Empty;
-    private string _description = string.Empty;
-    private string _duration = string.Empty;
-    private WorkEntryInput _original = new("", "", "", "");
     private IReadOnlyDictionary<string, string>? _errors;
-    private Confirmation? _confirmation;
-    private ElementReference _jiraInput;
-    private bool _focusEditor;
-    private int _dateInputVersion;
-    private int _contextVersion;
-
+    private EntryDraft _form = new();
+    private WorkEntry? _editing;
+    private WorkEntry? _delete;
+    private bool _dialogOpen;
+    private bool _showDialog;
+    private ElementReference _dialog;
+    private DotNetObjectReference<WorkdayPage>? _reference;
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
-
-    private WorkEntryInput Input => new(_jiraId, _title, _description, _duration);
-
-    private bool IsDirty => Input != _original;
-
-    private bool ShareTodayEntries => _snapshot is not null && HistoryService.Snapshot is { } history
-        && _snapshot.Date == history.LocalToday && _snapshot.Entries.SequenceEqual(history.Today.Entries);
+    private string DeleteMessage => $"Delete {_delete?.JiraId} ({DurationParser.Format(_delete?.DurationMinutes ?? 0)})? This cannot be undone.";
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAsync(_date);
-        await RefreshHistoryAsync();
+        _reference = DotNetObjectReference.Create(this);
+        await RefreshAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_focusEditor && _snapshot is not null && !_busy && _confirmation is null)
+        if (_showDialog)
         {
-            _focusEditor = false;
-            await _jiraInput.FocusAsync();
+            _showDialog = false;
+            await JS.InvokeVoidAsync("entryDialog.open", _dialog, _reference);
         }
     }
 
-    private async Task LoadAsync(DateOnly date)
+    private void SetDate(ChangeEventArgs args)
     {
-        if (_busy)
+        _form.Date = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OpenAdd()
+    {
+        _editing = null;
+        _form = Draft;
+        OpenDialog();
+    }
+
+    private void OpenEdit(WorkEntry entry)
+    {
+        _editing = entry;
+        _form = new EntryDraft { Date = DateText(entry.WorkDate), JiraId = entry.JiraId, Title = entry.Title, Description = entry.Description, Duration = DurationParser.Format(entry.DurationMinutes) };
+        OpenDialog();
+    }
+
+    private void OpenDialog()
+    {
+        _errors = null;
+        _error = null;
+        _dialogOpen = true;
+        _showDialog = true;
+    }
+
+    [JSInvokable]
+    public async Task DismissAsync()
+    {
+        if (_busy || !_dialogOpen)
         {
             return;
         }
-
-        _busy = true;
-        _error = null;
-        _status = null;
-        var version = ++_contextVersion;
-
-        try
-        {
-            var result = await Service.LoadAsync(date);
-
-            if (version != _contextVersion)
-            {
-                return;
-            }
-
-            if (result.IsSuccess)
-            {
-                _date = date;
-                _snapshot = Service.Snapshot;
-                _dateError = null;
-                ResetEditor();
-            }
-            else
-            {
-                ShowFailure(result, "load entries");
-            }
-        }
-        finally
-        {
-            _busy = false;
-            _dateInputVersion++;
-        }
-    }
-
-    private Task ChangeDateAsync(ChangeEventArgs args)
-    {
-        _dateInputVersion++;
-
-        if (_busy)
-        {
-            return Task.CompletedTask;
-        }
-
-        if (!DateOnly.TryParseExact(args.Value?.ToString(), "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.None, out var date))
-        {
-            _dateError = "Enter a valid work date.";
-
-            return Task.CompletedTask;
-        }
-
-        if (date > Today)
-        {
-            _dateError = "Work date cannot be in the future.";
-
-            return Task.CompletedTask;
-        }
-
-        if (date == _date)
-        {
-            _dateError = null;
-
-            return Task.CompletedTask;
-        }
-
-        return WithDiscardAsync(() => LoadAsync(date));
-    }
-
-    private Task Edit(WorkEntry entry)
-    {
-        if (_busy || _editingId == entry.Id)
-        {
-            return Task.CompletedTask;
-        }
-
-        return WithDiscardAsync(() => SelectEntryAsync(entry));
-    }
-
-    private async Task SelectEntryAsync(WorkEntry requested)
-    {
-        _busy = true;
-        _error = null;
-        _status = null;
-
-        try
-        {
-            var result = await Service.LoadEntryAsync(requested.WorkDate, requested.Id);
-
-            if (!result.IsSuccess)
-            {
-                ShowFailure(result, "load this entry");
-
-                return;
-            }
-
-            var destination = Service.Snapshot!;
-            var entry = destination.Entries.Single(saved => saved.Id == requested.Id);
-            _date = destination.Date;
-            _snapshot = destination;
-            _dateError = null;
-            _contextVersion++;
-            _dateInputVersion++;
-            PopulateEditor(entry);
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-    private void PopulateEditor(WorkEntry entry)
-    {
-        ResetEditor();
-        _editingId = entry.Id;
-        _jiraId = entry.JiraId;
-        _title = entry.Title;
-        _description = entry.Description;
-        _duration = DurationParser.Format(entry.DurationMinutes);
-        _original = Input;
-        _focusEditor = true;
-    }
-
-    private Task AddTodayAsync() => WithDiscardAsync(async () =>
-    {
-        var today = Today;
-        await LoadAsync(today);
-
-        if (_date == today && _error is null)
-        {
-            _focusEditor = true;
-            await RefreshHistoryAsync();
-        }
-    });
-
-    private Task RefreshHistoryAsync() => RunHistoryAsync(false);
-
-    private Task LoadOlderAsync() => RunHistoryAsync(true);
-
-    private Task RetryHistoryAsync() => RunHistoryAsync(_retryOlder);
-
-    private async Task RunHistoryAsync(bool older)
-    {
-        if (_busy || _confirmation is not null)
-        {
-            return;
-        }
-
-        _busy = true;
-
-        try
-        {
-            await ReadHistoryAsync(older);
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-    private async Task ReadHistoryAsync(bool older = false)
-    {
-        _historyBusy = true;
-        _retryOlder = older;
-        StateHasChanged();
-
-        try
-        {
-            var result = older ? await HistoryService.LoadOlderAsync() : await HistoryService.RefreshAsync();
-            _historyError = result.IsSuccess ? null : HistoryService.Snapshot is null
-                ? "Could not load today and earlier days. Check local storage access and retry."
-                : "Today and earlier days have not been refreshed. Previously loaded entries and the older-day position have been kept. Check local storage access and retry.";
-        }
-        finally
-        {
-            _historyBusy = false;
-        }
-    }
-
-    private Task CancelEditor() => WithDiscardAsync(() =>
-    {
-        ResetEditor();
-        _focusEditor = true;
-
-        return Task.CompletedTask;
-    });
-
-    private Task WithDiscardAsync(Func<Task> action)
-    {
-        if (_busy || _confirmation is not null)
-        {
-            return Task.CompletedTask;
-        }
-
-        if (IsDirty)
-        {
-            _confirmation = new Confirmation("Discard unsaved changes?", "Your unsaved input will be discarded.", "Discard changes", action);
-
-            return Task.CompletedTask;
-        }
-
-        return action();
+        await JS.InvokeVoidAsync("entryDialog.close", _dialog);
+        _dialogOpen = false;
+        _editing = null;
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task SaveAsync()
     {
-        if (_busy || _snapshot is null || _confirmation is not null)
+        if (_busy)
         {
             return;
         }
-
-        var date = _date;
-        var id = _editingId;
-        var input = Input;
-        var version = _contextVersion;
-        _busy = true;
-        _saving = true;
-        _error = null;
-        _status = null;
         _errors = null;
-
-        try
+        _error = null;
+        if (!DateOnly.TryParseExact(_form.Date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var date))
         {
-            var result = id.HasValue
-                ? await Service.UpdateAsync(id.Value, date, input)
-                : await Service.AddAsync(date, input);
-
-            if (version != _contextVersion || _date != date || _editingId != id)
-            {
-                return;
-            }
-
-            if (result.IsSuccess)
-            {
-                _snapshot = Service.Snapshot;
-                ResetEditor();
-                _status = id.HasValue ? "Entry updated." : "Entry saved.";
-                _focusEditor = true;
-                await ReadHistoryAsync();
-            }
-            else
-            {
-                ShowFailure(result, "save this entry");
-            }
+            _errors = new Dictionary<string, string> { ["WorkDate"] = "Enter a valid work date." };
+            return;
         }
-        finally
+        _busy = true;
+        var input = new WorkEntryInput(_form.JiraId, _form.Title, _form.Description, _form.Duration);
+        var result = _editing is null ? await Service.AddAsync(date, input) : await Service.UpdateAsync(_editing.Id, date, input);
+        _busy = false;
+        if (!result.IsSuccess)
         {
-            _saving = false;
-            _busy = false;
+            _errors = result.Errors;
+            _error = result.FailureReason == WorkdayFailure.Validation ? "Check the highlighted fields and try again." : "Could not save this entry. Your input has been kept.";
+            return;
         }
+        var wasAdd = _editing is null;
+        if (wasAdd)
+        {
+            Draft.Date = DateText(date);
+            Draft.Clear();
+        }
+        await DismissAsync();
+        await ReadHistoryAsync(false);
+        await RevealSavedDateAsync(date);
+        GlobalStatus.Show(wasAdd ? "Entry saved." : "Entry updated.");
     }
 
     private void RequestDelete(WorkEntry entry)
     {
-        if (_busy || _confirmation is not null)
+        _delete = entry;
+    }
+    private void CancelDelete()
+    {
+        _delete = null;
+    }
+    private async Task DeleteAsync()
+    {
+        var entry = _delete;
+        _delete = null;
+        if (entry is null || _busy)
         {
             return;
         }
-
-        var date = _date;
-        var version = _contextVersion;
-        var draftWarning = _editingId == entry.Id && IsDirty ? " Unsaved changes to this entry will also be discarded." : string.Empty;
-        _confirmation = new Confirmation("Delete entry?",
-            $"Delete {entry.JiraId} ({DurationParser.Format(entry.DurationMinutes)})? This cannot be undone.{draftWarning}",
-            "Delete", () => DeleteAsync(entry.Id, date, version));
+        _busy = true;
+        var result = await Service.DeleteAsync(entry.Id, entry.WorkDate);
+        _busy = false;
+        if (result.IsSuccess)
+        {
+            await ReadHistoryAsync(false);
+            GlobalStatus.Show("Entry deleted.");
+        }
+        else
+        {
+            _historyError = "Could not delete this entry. Check local storage access and try again.";
+        }
     }
 
-    private async Task DeleteAsync(Guid id, DateOnly date, int version)
-    {
-        _busy = true;
-        _saving = true;
-        _error = null;
-        _status = null;
+    private Task RefreshAsync() => ReadHistoryAsync(false);
+    private Task LoadOlderAsync() => ReadHistoryAsync(true);
+    private Task RetryAsync() => ReadHistoryAsync(_retryOlder);
 
+    private async Task RevealSavedDateAsync(DateOnly date)
+    {
+        while (_historyError is null && HistoryService.Snapshot is { HasOlder: true } snapshot
+            && snapshot.OldestLoadedBoundary is { } boundary && date < boundary)
+        {
+            await ReadHistoryAsync(true);
+        }
+    }
+
+    private async Task ReadHistoryAsync(bool older)
+    {
+        if (_busy)
+        {
+            return;
+        }
+        _busy = true;
+        _retryOlder = older;
         try
         {
-            var result = await Service.DeleteAsync(id, date);
-
-            if (version != _contextVersion || date != _date)
-            {
-                return;
-            }
-
-            if (result.IsSuccess)
-            {
-                _snapshot = Service.Snapshot;
-
-                if (_editingId == id)
-                {
-                    ResetEditor();
-                }
-
-                _status = "Entry deleted.";
-                await ReadHistoryAsync();
-            }
-            else
-            {
-                ShowFailure(result, "delete this entry");
-            }
+            var result = older ? await HistoryService.LoadOlderAsync() : await HistoryService.RefreshAsync();
+            _historyError = result.IsSuccess ? null : HistoryService.Snapshot is null ? "Could not load entries. Check local storage access and retry." : "History could not be refreshed. Previously loaded entries have been kept. Retry when storage is available.";
         }
         finally
         {
-            _saving = false;
             _busy = false;
-            _focusEditor = true;
         }
-    }
-
-    private async Task ConfirmAsync()
-    {
-        var action = _confirmation?.Action;
-        _confirmation = null;
-
-        if (action is not null)
-        {
-            await action();
-        }
-    }
-
-    private void DismissConfirmation()
-    {
-        _confirmation = null;
-        _focusEditor = true;
-    }
-
-    private void ResetEditor()
-    {
-        _editingId = null;
-        _jiraId = string.Empty;
-        _title = string.Empty;
-        _description = string.Empty;
-        _duration = string.Empty;
-        _original = Input;
-        _errors = null;
-        _status = null;
-        _error = null;
-    }
-
-    private void ShowFailure(WorkdayResult result, string operation)
-    {
-        _errors = result.Errors;
-        _dateError = FieldError("WorkDate");
-        _error = result.FailureReason switch
-        {
-            WorkdayFailure.Validation => "Check the highlighted fields and try again.",
-            WorkdayFailure.NotFound => "This entry could not be found. Your input has been kept. Select another date and return to reload saved entries.",
-            _ => $"Could not {operation}. Check local storage access and try again. Your input and previously loaded entries have been kept."
-        };
     }
 
     private string? FieldError(string field) => _errors is not null && _errors.TryGetValue(field, out var error) ? error : null;
-
     private static string DateText(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-
-    private sealed record Confirmation(string Title, string Message, string ConfirmText, Func<Task> Action);
+    private static string DisplayDate(DateOnly date) => date.ToString("D", System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+    public void Dispose()
+    {
+        _reference?.Dispose();
+    }
 }

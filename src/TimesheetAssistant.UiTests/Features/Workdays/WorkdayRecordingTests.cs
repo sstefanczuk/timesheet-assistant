@@ -19,13 +19,16 @@ public sealed class WorkdayRecordingTests
             var screen = new WorkdayScreen(first);
             await screen.ReadyAsync();
             await screen.DateAsync(WorkDate);
-            await screen.TotalsAsync("0m", "Remaining: 7h 12m");
+
             await screen.AddAsync("T-1", "Scrum Ceremonies", "Refinement", "1h");
             await screen.TotalsAsync("1h", "Remaining: 6h 12m");
+            await Expect(screen.DailyTotals.Locator(".status-warning")).ToHaveCountAsync(1);
             await screen.AddAsync("X-1", "Order Page", "", "6h 12m");
             await screen.TotalsAsync("7h 12m", "Remaining: 0m");
+            await Expect(screen.DailyTotals.Locator(".status-success")).ToHaveCountAsync(1);
             await screen.AddAsync("T-1", "Separate entry", "", "1m");
             await screen.TotalsAsync("7h 13m", "Excess: 1m");
+            await Expect(screen.DailyTotals.Locator(".status-warning")).ToHaveCountAsync(1);
             await screen.EditAsync(2);
             await screen.Field("Duration").FillAsync("2m");
             await screen.SaveAsync("Entry updated.");
@@ -79,7 +82,7 @@ public sealed class WorkdayRecordingTests
     }
 
     [Fact]
-    public async Task Validation_and_cancelled_discard_preserve_draft_date_and_saved_entries()
+    public async Task Validation_and_closing_add_dialog_preserve_draft_and_saved_entries()
     {
         var scenario = new DesktopScenario();
         await scenario.RunAsync(async () =>
@@ -95,25 +98,13 @@ public sealed class WorkdayRecordingTests
             await Expect(screen.Field("Item title")).ToHaveAttributeAsync("aria-invalid", "true");
             await Expect(screen.Field("Duration")).ToHaveAttributeAsync("aria-invalid", "true");
             await Expect(screen.Field("Duration")).ToHaveValueAsync("6h 60m");
+            await screen.Button("Cancel").ClickAsync();
             await screen.EntriesAsync(["T-1", "Saved entry", "", "1h"]);
-            await screen.TotalsAsync("1h", "Remaining: 6h 12m");
-
-            await screen.Field("Work date").FillAsync(Weekend);
-            await screen.Field("Work date").PressAsync("Tab");
-            await Expect(screen.Dialog).ToBeVisibleAsync();
-            await screen.Dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel", Exact = true }).ClickAsync();
+            await screen.OpenAddAsync();
             await Expect(screen.Field("Work date")).ToHaveValueAsync(WorkDate);
             await Expect(screen.Field("Work description (optional)")).ToHaveValueAsync("Draft");
-            await screen.Button("Cancel").ClickAsync();
-            await screen.Dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel", Exact = true }).ClickAsync();
             await Expect(screen.Field("Duration")).ToHaveValueAsync("6h 60m");
-            await screen.Rows.First.GetByRole(AriaRole.Button, new() { Name = "Edit", Exact = true }).ClickAsync();
-            await screen.Dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel", Exact = true }).ClickAsync();
-            await Expect(screen.Field("Work description (optional)")).ToHaveValueAsync("Draft");
             await screen.Button("Cancel").ClickAsync();
-            await screen.Dialog.GetByRole(AriaRole.Button, new() { Name = "Discard changes", Exact = true }).ClickAsync();
-            await Expect(screen.Field("Duration")).ToHaveValueAsync("");
-            await screen.EntriesAsync(["T-1", "Saved entry", "", "1h"]);
         });
     }
 }

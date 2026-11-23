@@ -33,7 +33,7 @@
   - Tradeoff: Requires coordinating layout navigation with feature state; phase 2 may replace this mechanism.
   - Confidence: HIGH — the link changes the route while editor state is held by the page component.
   - Blind spot: The precise integration mechanism should follow the phase 2 design.
-- **Decision**: DEFERRED — the author chose to address this during the phase 2 redesign, using that phase's agreed draft and edit behavior.
+- **Decision**: FIXED IN PHASE 2 — the author deferred this to the redesign. The add draft now survives navigation within the session; closing an edit discards it as agreed. Desktop coverage passes; author verification remains pending.
 
 ### F2 — Accent combinations lack readable text contrast
 

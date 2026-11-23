@@ -78,7 +78,14 @@ public sealed class WorkEntryHistoryUpgradeTests
             var newIds = await editor.Rows.EvaluateAllAsync<string[]>("rows => rows.map(row => row.dataset.entryId)");
             var additional = new HistoryTestDay(additionalDate,
                 [["UPGRADE-NEW", "Written by new package", "Older than all baseline entries", "4m"]], newIds, "4m");
-            await history.OlderAsync(dates.Append(additionalDate).ToArray());
+            if (await history.Day(additionalDate).CountAsync() == 0)
+            {
+                await history.OlderAsync(dates.Append(additionalDate).ToArray());
+            }
+            else
+            {
+                await history.DatesAsync(dates.Append(additionalDate).ToArray());
+            }
             await history.DayAsync(additional);
             await history.ExhaustedAsync();
             await current.DisposeAsync();

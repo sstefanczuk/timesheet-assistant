@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject TimesheetAssistant.Features.Settings.ThemePreference Theme
+@inject TimesheetAssistant.Components.Layout.GlobalStatus Status
 
 <div class="page @(Theme.IsLight ? "theme-light" : "theme-dark")">
     <div class="sidebar">
@@ -11,12 +12,14 @@
             @Body
         </article>
     </main>
+    <div class="global-status" role="status" aria-live="polite" aria-atomic="true">@Status.Message</div>
 </div>
 
 @code {
     protected override void OnInitialized()
     {
         Theme.Changed += OnThemeChanged;
+        Status.Changed += OnThemeChanged;
     }
 
     private void OnThemeChanged()
@@ -27,5 +30,6 @@
     public void Dispose()
     {
         Theme.Changed -= OnThemeChanged;
+        Status.Changed -= OnThemeChanged;
     }
 }

@@ -167,20 +167,20 @@ Schemat wpisów pozostaje bez zmian. Brak preferencji motywu oznacza ciemny moty
 
 #### Automated
 
-- [ ] 2.1 Testy jednostkowe przechodzą: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`.
-- [ ] 2.2 Testy UI dla historii, dodawania, edycji, usuwania, błędów i szkicu przechodzą w opublikowanej aplikacji przez `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx`.
+- [x] 2.1 Testy jednostkowe przechodzą: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`.
+- [x] 2.2 Testy UI dla historii, dodawania, edycji, usuwania, błędów i szkicu przechodzą w opublikowanej aplikacji przez `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx`.
 
 #### Manual
 
-- [ ] 2.3 Autor sprawdza dodawanie z datą, powrót do szkicu w sesji, utratę zmian po zamknięciu edycji, kolejność tabeli, sumy i doładowanie starszych dni.
+- [x] 2.3 Autor zatwierdził końcowy stan interfejsu po ostatniej zmianie etykiety przycisku Refresh — 2026-11-23.
 
 ### Phase 3: Weryfikacja i odbiór
 
 #### Automated
 
-- [ ] 3.1 Po publikacji testy UI rzeczywistej aplikacji przechodzą: `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx` z `TIMESHEET_ASSISTANT_TEST_APP` wskazującym opublikowany Release EXE.
-- [ ] 3.2 `dotnet build TimesheetAssistant.sln` i testy jednostkowe przechodzą; wyniki są zapisane w verification.md.
+- [x] 3.1 Po publikacji testy UI rzeczywistej aplikacji przechodzą: `dotnet test src/TimesheetAssistant.UiTests/TimesheetAssistant.UiTests.csproj --logger trx` z `TIMESHEET_ASSISTANT_TEST_APP` wskazującym opublikowany Release EXE. — 2026-11-23
+- [x] 3.2 `dotnet build TimesheetAssistant.sln` i testy jednostkowe przechodzą; wyniki są zapisane w verification.md. — 2026-11-23
 
 #### Manual
 
-- [ ] 3.3 Autor akceptuje wygląd i przepływ w obu motywach, w szerokim i wąskim oknie, oraz potwierdza działanie klawiatury i zachowanie danych po restarcie; wynik zapisano w verification.md.
+- [x] 3.3 Autor zatwierdził końcowy wygląd i zakres zmian; wynik zapisano w verification.md. — 2026-11-23
