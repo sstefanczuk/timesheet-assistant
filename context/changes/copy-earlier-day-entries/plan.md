@@ -146,9 +146,9 @@ No schema migration is planned. Existing entries remain unchanged; new entries u
 
 #### Automated
 
-- [x] 2.1 Release build and unit tests pass before packaging; package a fresh version using `scripts/Package-Windows.ps1` as described in `src/TimesheetAssistant.UiTests/README.md`.
-- [x] 2.2 Full desktop UI suite passes against the freshly published executable with isolated scenarios and TRX diagnostics, including the configured prior executable for upgrade coverage.
+- [x] 2.1 Release build and unit tests pass before packaging; package a fresh version using `scripts/Package-Windows.ps1` as described in `src/TimesheetAssistant.UiTests/README.md`. — 768811e
+- [x] 2.2 Full desktop UI suite passes against the freshly published executable with isolated scenarios and TRX diagnostics, including the configured prior executable for upgrade coverage. — 768811e
 
 #### Manual
 
-- [x] 2.3 Author verifies the duplication workflow and date suggestion in the published application, including keyboard access and both themes, and confirms acceptance in `verification.md`.
+- [x] 2.3 Author verifies the duplication workflow and date suggestion in the published application, including keyboard access and both themes, and confirms acceptance in `verification.md`. — 768811e
