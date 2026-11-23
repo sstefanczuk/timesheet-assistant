@@ -1,10 +1,10 @@
 ---
 change_id: redesign-entry-experience
 title: Redesign entry experience and application UI style
-status: impl_reviewed
+status: archived
 created: 2026-11-20
 updated: 2026-11-23
-archived_at: null
+archived_at: 2026-11-23T13:08:07Z
 ---
 
 ## Notes
