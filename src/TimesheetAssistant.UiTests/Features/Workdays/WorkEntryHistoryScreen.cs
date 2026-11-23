@@ -18,6 +18,9 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
 
     public ILocator Row(DateOnly date, string id) => Day(date).Locator($"tr[data-entry-id='{id}']");
 
+    public ILocator DuplicateButton(DateOnly date, string id) =>
+        Row(date, id).GetByRole(AriaRole.Button, new() { Name = "Duplicate entry", Exact = true });
+
     public async Task<DateOnly> LocalTodayAsync()
     {
         var displayed = await Earlier.GetAttributeAsync("data-local-today");
@@ -28,6 +31,28 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
     public async Task IdleAsync()
     {
         await Expect(Earlier).ToHaveAttributeAsync("aria-busy", "false", new() { Timeout = application.UiTimeoutMilliseconds });
+    }
+
+    public async Task EnsureDateLoadedAsync(DateOnly date)
+    {
+        var older = Button("Load older day");
+        var day = Day(date);
+
+        while (await day.CountAsync() == 0 && await older.IsVisibleAsync())
+        {
+            await older.ClickAsync();
+            await IdleAsync();
+        }
+
+        await Expect(day).ToHaveCountAsync(1);
+    }
+
+    public async Task<string> FirstEntryIdAsync(DateOnly date)
+    {
+        var id = await Day(date).Locator("tr[data-entry-id]").First.GetAttributeAsync("data-entry-id");
+        Assert.NotNull(id);
+
+        return id;
     }
 
     public async Task DatesAsync(params DateOnly[] dates)

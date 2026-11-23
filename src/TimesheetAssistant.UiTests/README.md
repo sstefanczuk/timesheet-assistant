@@ -91,6 +91,13 @@ the scenario requires an error/retry and unchanged complete groups/cursor,
 releases the handle in finally, then verifies successful retry. A normal reserved
 SQLite write transaction would not establish that reads were blocked.
 
+`WorkEntryDuplicationTests` cover duplicates from initially visible and paged older
+entries, copied field values, weekday suggestions across weekends and exact or
+excess daily totals, cancellation, a same-date duplicate with the same Jira ID,
+independent identity and contents after restart, and a storage read failure that
+must not open the form or create a partial entry. Keyboard and light/dark theme
+acceptance remains a manual check on the published package.
+
 `WorkEntryHistoryUpgradeTests` launch the configured prior EXE and create all
 baseline entries through its legacy UI, capture their exact IDs/order, completely
 dispose its owned process job, then launch the new package against the same

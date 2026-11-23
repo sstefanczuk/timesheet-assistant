@@ -46,8 +46,9 @@ Clean-machine compatibility has not been verified. Developer-machine launch chec
 are recorded separately in the deployment plan. SmartScreen or device policy may
 warn about or block unsigned downloads. This preview has no automatic updater.
 Saved entries are stored in %LOCALAPPDATA%\TimesheetAssistant, outside this folder.
-Save before closing; unsaved drafts are not recovered. Copying entries, summaries and integrations
-are not implemented. Local verification does not establish desktop CI acceptance.
+Save before closing; unsaved drafts are not recovered. Individual earlier work entries can be
+duplicated through the editable entry form. Summaries and integrations are not implemented.
+Local verification does not establish desktop CI acceptance.
 "@ | Set-Content -LiteralPath (Join-Path $publish 'README.txt') -Encoding utf8
 
 $zip = Join-Path $release "TimesheetAssistant-$Version-win-x64.zip"
@@ -68,7 +69,8 @@ the full MVP is incomplete.
 - The automatic source archives are not runnable application downloads.
 - Local SQLite storage; no cloud backend, updater or clean-machine verification.
 - Browse Today and earlier saved days, load older history and edit exact saved entries.
-- Copying entries, summaries and integrations are not implemented.
+- Individual earlier work entries can be duplicated through the editable entry form; summaries
+  and integrations are not implemented.
 - Pure rule tests run before packaging. Desktop CI acceptance remains deferred.
 - Local desktop and author acceptance evidence is recorded separately for each change.
 
