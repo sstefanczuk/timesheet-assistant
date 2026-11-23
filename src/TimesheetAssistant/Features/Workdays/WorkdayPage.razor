@@ -51,7 +51,7 @@
                             {
                                 <tr @key="entry.Id" data-entry-id="@entry.Id">
                                     <td class="entry-date" title="@DateText(day.Date)">@DateText(day.Date)</td><td class="entry-jira" title="@entry.JiraId">@entry.JiraId</td><td>@entry.Title</td><td class="description">@entry.Description</td><td class="entry-duration">@DurationParser.Format(entry.DurationMinutes)</td>
-                                    <td class="entry-actions"><button type="button" class="btn btn-sm btn-outline-primary" disabled="@_busy" @onclick="() => OpenEdit(entry)">Edit</button> <button type="button" class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => RequestDelete(entry)">Delete</button></td>
+                                    <td class="entry-actions"><button type="button" class="btn btn-sm btn-outline-primary" disabled="@_busy" @onclick="() => OpenEdit(entry)">Edit</button> <button type="button" class="btn btn-sm btn-outline-primary duplicate-button" aria-label="Duplicate entry" title="Duplicate entry" disabled="@_busy" @onclick="() => OpenDuplicateAsync(entry)"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 1.5h7.75A1.75 1.75 0 0 1 14.5 3.25V11a1.75 1.75 0 0 1-1.75 1.75H12v-1.5h.75a.25.25 0 0 0 .25-.25V3.25A.25.25 0 0 0 12.75 3H5v.75H3.5v-.5A1.75 1.75 0 0 1 5 1.5Z"/><path d="M3.25 5A1.75 1.75 0 0 0 1.5 6.75v6A1.75 1.75 0 0 0 3.25 14.5h6A1.75 1.75 0 0 0 11 12.75v-6A1.75 1.75 0 0 0 9.25 5h-6Zm-.25 1.75a.25.25 0 0 1 .25-.25h6a.25.25 0 0 1 .25.25v6a.25.25 0 0 1-.25.25h-6a.25.25 0 0 1-.25-.25v-6Z"/></svg></button> <button type="button" class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => RequestDelete(entry)">Delete</button></td>
                                 </tr>
                             }
                         </tbody>
@@ -95,6 +95,7 @@
     private IReadOnlyDictionary<string, string>? _errors;
     private EntryDraft _form = new();
     private WorkEntry? _editing;
+    private bool _duplicating;
     private WorkEntry? _delete;
     private bool _dialogOpen;
     private bool _showDialog;
@@ -126,6 +127,7 @@
     private void OpenAdd()
     {
         _editing = null;
+        _duplicating = false;
         _form = Draft;
         OpenDialog();
     }
@@ -133,7 +135,39 @@
     private void OpenEdit(WorkEntry entry)
     {
         _editing = entry;
+        _duplicating = false;
         _form = new EntryDraft { Date = DateText(entry.WorkDate), JiraId = entry.JiraId, Title = entry.Title, Description = entry.Description, Duration = DurationParser.Format(entry.DurationMinutes) };
+        OpenDialog();
+    }
+
+    private async Task OpenDuplicateAsync(WorkEntry entry)
+    {
+        if (_busy || _dialogOpen)
+        {
+            return;
+        }
+
+        _busy = true;
+        _historyError = null;
+        var suggestion = await Service.SuggestNextIncompleteWeekdayAsync(entry.WorkDate);
+        _busy = false;
+
+        if (!suggestion.IsSuccess || !suggestion.SuggestedDate.HasValue)
+        {
+            _historyError = "Could not prepare a duplicate. Check local storage access and try again.";
+            return;
+        }
+
+        _editing = null;
+        _duplicating = true;
+        _form = new EntryDraft
+        {
+            Date = DateText(suggestion.SuggestedDate.Value),
+            JiraId = entry.JiraId,
+            Title = entry.Title,
+            Description = entry.Description,
+            Duration = DurationParser.Format(entry.DurationMinutes)
+        };
         OpenDialog();
     }
 
@@ -155,6 +189,7 @@
         await JS.InvokeVoidAsync("entryDialog.close", _dialog);
         _dialogOpen = false;
         _editing = null;
+        _duplicating = false;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -173,6 +208,7 @@
         }
         _busy = true;
         var input = new WorkEntryInput(_form.JiraId, _form.Title, _form.Description, _form.Duration);
+        var wasDuplicate = _duplicating;
         var result = _editing is null ? await Service.AddAsync(date, input) : await Service.UpdateAsync(_editing.Id, date, input);
         _busy = false;
         if (!result.IsSuccess)
@@ -184,13 +220,16 @@
         var wasAdd = _editing is null;
         if (wasAdd)
         {
-            Draft.Date = DateText(date);
-            Draft.Clear();
+            if (!_duplicating)
+            {
+                Draft.Date = DateText(date);
+                Draft.Clear();
+            }
         }
         await DismissAsync();
         await ReadHistoryAsync(false);
         await RevealSavedDateAsync(date);
-        GlobalStatus.Show(wasAdd ? "Entry saved." : "Entry updated.");
+        GlobalStatus.Show(wasAdd ? wasDuplicate ? "Entry duplicated." : "Entry saved." : "Entry updated.");
     }
 
     private void RequestDelete(WorkEntry entry)

@@ -39,11 +39,93 @@ public sealed record WorkdaySnapshot(DateOnly Date, IReadOnlyList<WorkEntry> Ent
     public WorkdayTotals Totals => WorkdayTotals.Calculate(Entries);
 }
 
+public sealed record WorkdayDateSuggestionResult(bool IsSuccess, DateOnly? SuggestedDate,
+    WorkdayFailure? FailureReason = null)
+{
+    public static WorkdayDateSuggestionResult Success(DateOnly date) => new(true, date);
+
+    public static WorkdayDateSuggestionResult Failure(WorkdayFailure reason) => new(false, null, reason);
+}
+
 public sealed class WorkdayService(IWorkEntryStore store, Func<DateOnly> localToday)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public WorkdaySnapshot? Snapshot { get; private set; }
+
+    public async Task<WorkdayDateSuggestionResult> SuggestNextIncompleteWeekdayAsync(DateOnly sourceDate,
+        CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken);
+
+        try
+        {
+            var today = localToday();
+
+            if (sourceDate >= today)
+            {
+                return WorkdayDateSuggestionResult.Success(today);
+            }
+
+            var firstCandidate = sourceDate.AddDays(1);
+            WorkEntryHistoryPage days;
+            IReadOnlyList<WorkEntry>? todayEntries = null;
+
+            if (firstCandidate < today)
+            {
+                if (today < DateOnly.MaxValue)
+                {
+                    days = await store.ReadHistoryRangeAsync(firstCandidate, today.AddDays(1), cancellationToken);
+                }
+                else
+                {
+                    days = await store.ReadHistoryRangeAsync(firstCandidate, today, cancellationToken);
+                    todayEntries = await store.ReadAsync(today, cancellationToken);
+                }
+            }
+            else
+            {
+                days = new WorkEntryHistoryPage([], false);
+                todayEntries = await store.ReadAsync(today, cancellationToken);
+            }
+
+            var totalsByDate = days.Days.ToDictionary(day => day.Date, day => day.Totals.TotalMinutes);
+
+            if (todayEntries is not null)
+            {
+                totalsByDate[today] = WorkdayTotals.Calculate(todayEntries).TotalMinutes;
+            }
+
+            var candidate = firstCandidate;
+
+            while (candidate <= today)
+            {
+                if (candidate.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday)
+                    && (!totalsByDate.TryGetValue(candidate, out var totalMinutes)
+                        || totalMinutes < WorkdayTotals.TargetMinutes))
+                {
+                    return WorkdayDateSuggestionResult.Success(candidate);
+                }
+
+                if (candidate == today)
+                {
+                    break;
+                }
+
+                candidate = candidate.AddDays(1);
+            }
+
+            return WorkdayDateSuggestionResult.Success(today);
+        }
+        catch (WorkEntryStoreException)
+        {
+            return WorkdayDateSuggestionResult.Failure(WorkdayFailure.Storage);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
 
     public Task<WorkdayResult> LoadAsync(DateOnly date, CancellationToken cancellationToken = default) =>
         LoadAsync(date, null, cancellationToken);
