@@ -55,7 +55,7 @@ North star oznacza tutaj najmniejszy kompletny przepływ, który potwierdza gł�
 | S-01 | record-persistent-workday | Użytkownik może wybrać datę, dodawać, edytować i usuwać osobne wpisy pracy oraz widzieć sumę, brakujący czas lub przekroczenie 7 h 12 min; wpisy pozostają po restarcie. | — | FR-002, FR-005, FR-007; Non-Functional Requirements | done |
 | S-07 | browse-entry-history | Użytkownik po otwarciu aplikacji widzi wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy, osobno dzisiaj i możliwość dodania wpisu od zera. Może doładować starszy dzień i przeglądać historię bez limitu retencji; upływ czasu ani aktualizacja aplikacji nie usuwa historii. Przy braku wpisów widzi pusty stan i możliwość dodania nowego. | S-01 | FR-002, FR-006, FR-011; Non-Functional Requirements | done |
 | S-09 | redesign-entry-experience | Użytkownik przegląda dzisiejsze i wcześniejsze wpisy we wspólnej tabeli oraz dodaje i edytuje wpisy w formularzu; decyzja S-09 z 2026-11-21 zachowuje dzisiaj jako dzień w toku. | S-07 | FR-002, FR-006; Non-Functional Requirements | done |
-| S-08 | copy-earlier-day-entries | Użytkownik może powielić pojedynczy wpis przez dostępny przy nim przycisk; aplikacja otwiera ten sam formularz Add entry z danymi źródłowymi i najwcześniejszą późniejszą niepełną datą roboczą (poniedziałek–piątek) do dziś. Użytkownik może edytować kopię przed zapisem; zapis tworzy niezależny wpis, a anulowanie nie zapisuje zmian. | S-09 | FR-006 | in-progress |
+| S-08 | copy-earlier-day-entries | Użytkownik może powielić pojedynczy wpis przez dostępny przy nim przycisk; aplikacja otwiera ten sam formularz Add entry z danymi źródłowymi i najwcześniejszą późniejszą niepełną datą roboczą (poniedziałek–piątek) do dziś. Użytkownik może edytować kopię przed zapisem; zapis tworzy niezależny wpis, a anulowanie nie zapisuje zmian. | S-09 | FR-006 | done |
 | S-02 | prepare-dual-system-summaries | Użytkownik może otworzyć osobne podsumowania kompletnego dnia i kopiować teksty do Jiry i MyWork; dodatkowe 48 min otrzymuje najdłuższy pojedynczy wpis, przy remisie pierwszy zapisany. | S-08 | US-01, FR-007, FR-008 | proposed |
 | S-03 | track-outstanding-days | Użytkownik może zobaczyć zaległe dni robocze od najstarszego, wybrać dzień do uzupełnienia i pracować na dzisiejszych wpisach w tabeli oraz oznaczyć dzień rozliczony wcześniej bez odtwarzania wpisów; starsze nierozliczone dni pozostają widoczne. | S-01 | FR-001, FR-002 | proposed |
 | S-04 | confirm-day-transfers | Użytkownik może osobno potwierdzić lub cofnąć przeniesienie do każdego systemu; dzień znika z zaległości po wymaganych potwierdzeniach i wraca po ich cofnięciu, a edycja lub usunięcie wpisu resetuje oba potwierdzenia dnia. | S-02, S-03 | FR-005, FR-009, FR-010 | proposed |
@@ -141,7 +141,7 @@ Stan zbadany w kodzie i dokumentach, potwierdzony przez użytkownika; zapisany 2
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Wybór źródła pomija puste dni; kopia nie modyfikuje oryginału i korzysta z zasad kontroli sumy oraz potwierdzeń obowiązujących w dniu docelowym.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-02: Podsumowania Jiry i MyWork
 
@@ -240,5 +240,6 @@ Wykonalność automatyzacji interfejsu na runnerze pozostaje pytaniem F-01. Decy
 - **S-01: Users can select a date, add, edit and delete work entries, see daily totals and the remaining or excess time against 7 h 12 min, and retain entries after restart.** — Archived 2026-11-15 → `context/archive/2026-11-11-record-persistent-workday/`. Lesson: —.
 
 - **S-07: Użytkownik po otwarciu aplikacji widzi wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy, osobno dzisiaj i możliwość dodania wpisu od zera. Może doładować starszy dzień i przeglądać historię bez limitu retencji; upływ czasu ani aktualizacja aplikacji nie usuwa historii. Przy braku wpisów widzi pusty stan i możliwość dodania nowego.** — Archived 2026-11-20 → `context/archive/2026-11-15-browse-entry-history/`. Lesson: —.
+- **S-08: Użytkownik może skopiować wybrane wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy i doładować kolejny starszy dzień; może bezpośrednio skopiować pojedynczy wpis na dzisiaj lub wybrać inny dzień docelowy. Kopie są niezależne od oryginału i można je edytować przed podsumowaniem.** — Archived 2026-11-23 → `context/archive/2026-11-23-copy-earlier-day-entries/`. Lesson: —.
 
 - **S-09: Użytkownik przegląda dzisiejsze i wcześniejsze wpisy we wspólnej tabeli oraz dodaje i edytuje wpisy w formularzu; decyzja S-09 z 2026-11-21 zachowuje dzisiaj jako dzień w toku.** — Archived 2026-11-23 → `context/archive/2026-11-20-redesign-entry-experience/`. Lesson: —.
