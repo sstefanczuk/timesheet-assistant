@@ -1,7 +1,7 @@
 ---
 change_id: copy-earlier-day-entries
 title: Duplicate work entries
-status: implementing
+status: impl_reviewed
 created: 2026-11-23
 updated: 2026-11-23
 archived_at: null

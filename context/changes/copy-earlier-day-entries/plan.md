@@ -135,12 +135,12 @@ No schema migration is planned. Existing entries remain unchanged; new entries u
 
 #### Automated
 
-- [x] 1.1 Pure unit tests pass: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`.
-- [x] 1.2 Solution builds: `dotnet build TimesheetAssistant.sln`.
+- [x] 1.1 Pure unit tests pass: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj` — 689e709
+- [x] 1.2 Solution builds: `dotnet build TimesheetAssistant.sln` — 689e709
 
 #### Manual
 
-- [x] 1.3 Author confirms the visible Duplicate action opens an editable form with the agreed suggested date and saves a separate entry; cancellation does not save.
+- [x] 1.3 Author confirms the visible Duplicate action opens an editable form with the agreed suggested date and saves a separate entry; cancellation does not save. — 689e709
 
 ### Phase 2: Desktop verification and acceptance
 
