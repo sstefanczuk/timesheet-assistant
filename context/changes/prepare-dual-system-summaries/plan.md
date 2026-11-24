@@ -194,7 +194,7 @@ Nie jest wymagana migracja: podsumowania są wyliczane z istniejących wpisów i
 
 #### Manual
 
-- [ ] 2.3 Autor sprawdza klawiaturę, fokus, oba motywy i wąskie okno oraz czytelność nieaktywnej akcji i komunikatów schowka.
+- [x] 2.3 Autor sprawdza klawiaturę, fokus, oba motywy i wąskie okno oraz czytelność nieaktywnej akcji i komunikatów schowka.
 
 ### Phase 3: Weryfikacja desktopowa i odbiór
 
