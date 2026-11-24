@@ -1,9 +1,9 @@
 ---
 change_id: prepare-dual-system-summaries
 title: Podsumowania Jiry i MyWork
-status: implementing
+status: impl_reviewed
 created: 2026-11-23
-updated: 2026-11-23
+updated: 2026-11-24
 archived_at: null
 ---
 

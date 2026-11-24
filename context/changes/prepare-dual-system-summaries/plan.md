@@ -183,7 +183,7 @@ Nie jest wymagana migracja: podsumowania są wyliczane z istniejących wpisów i
 
 #### Manual
 
-- [ ] 1.2 Autor potwierdza, że oczekiwane wiersze US-01 i reguła remisu odpowiadają wymaganiom.
+- [x] 1.2 Autor potwierdza, że oczekiwane wiersze US-01 i reguła remisu odpowiadają wymaganiom.
 
 ### Phase 2: Interfejs i kopiowanie
 
