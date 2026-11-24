@@ -189,12 +189,12 @@ Nie jest wymagana migracja: podsumowania są wyliczane z istniejących wpisów i
 
 #### Automated
 
-- [x] 2.1 Rozwiązanie buduje się: `dotnet build TimesheetAssistant.sln`. Verified with isolated output path because the running app locks the default EXE output.
-- [x] 2.2 Testy jednostkowe przechodzą: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`.
+- [x] 2.1 Rozwiązanie buduje się: `dotnet build TimesheetAssistant.sln`. Verified with isolated output path because the running app locks the default EXE output. — 104837b
+- [x] 2.2 Testy jednostkowe przechodzą: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`. — 104837b
 
 #### Manual
 
-- [x] 2.3 Autor sprawdza klawiaturę, fokus, oba motywy i wąskie okno oraz czytelność nieaktywnej akcji i komunikatów schowka.
+- [x] 2.3 Autor sprawdza klawiaturę, fokus, oba motywy i wąskie okno oraz czytelność nieaktywnej akcji i komunikatów schowka. — 104837b
 
 ### Phase 3: Weryfikacja desktopowa i odbiór
 
