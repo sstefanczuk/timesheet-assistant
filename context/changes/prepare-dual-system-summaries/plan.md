@@ -189,8 +189,8 @@ Nie jest wymagana migracja: podsumowania są wyliczane z istniejących wpisów i
 
 #### Automated
 
-- [ ] 2.1 Rozwiązanie buduje się: `dotnet build TimesheetAssistant.sln`.
-- [ ] 2.2 Testy jednostkowe przechodzą: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`.
+- [x] 2.1 Rozwiązanie buduje się: `dotnet build TimesheetAssistant.sln`. Verified with isolated output path because the running app locks the default EXE output.
+- [x] 2.2 Testy jednostkowe przechodzą: `dotnet test src/TimesheetAssistant.UnitTests/TimesheetAssistant.UnitTests.csproj`.
 
 #### Manual
 

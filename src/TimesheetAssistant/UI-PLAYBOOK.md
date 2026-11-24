@@ -49,6 +49,7 @@ Add `btn-sm` for compact table-row actions. Bootstrap spacing utilities such as 
 - Preserve the visible keyboard focus style. Inputs use a thinner accent outline; disabled inputs use the raised surface token.
 - Use `alert alert-danger` for errors, `alert alert-warning` for warnings and `alert alert-light` for neutral summaries. Use `role="alert"` for relevant errors and `role="status"` or `aria-live` for status updates.
 - Wrap wide tables in `table-responsive`, use `table`, meaningful headers and a caption. Preserve horizontal access in narrow windows.
+- Give table header rows and total/footer rows a distinct `--surface-raised` background so table structure and totals remain easy to scan in both themes. Highlight the active tab with the shared `--accent` token.
 - In the work-entry table, keep Date and Jira ID columns fixed-width and single-line; long Jira IDs are visually truncated with the full value available in the cell title.
 - Let the page content and work-entry table use the full available content width. Keep Date, Jira ID, Duration and Actions fixed-width; let Item title and Work description share the remaining width.
 - Place cross-page notifications and progress in the single-line global status strip at the bottom of the application. Keep page-specific validation and loading errors beside the affected content.

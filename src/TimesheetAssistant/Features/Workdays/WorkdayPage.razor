@@ -11,8 +11,8 @@
 <TimesheetAssistant.Components.PageHeader Title="Timesheet" />
 
 <div class="toolbar">
-    <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="OpenAdd">Add entry</button>
-    <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="RefreshAsync">Refresh</button>
+    <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="OpenAdd"><svg class="button-icon" aria-hidden="true" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" /></svg>Add entry</button>
+    <button type="button" class="btn btn-outline-secondary" disabled="@_busy" @onclick="RefreshAsync"><svg class="button-icon" aria-hidden="true" viewBox="0 0 16 16"><path d="M13 5V2l-2 2a5 5 0 1 0 2 5" /></svg>Refresh</button>
 </div>
 <section aria-label="Entries" aria-busy="@(_busy ? "true" : "false")"
          data-local-today="@(HistoryService.Snapshot is { } snapshot ? DateText(snapshot.LocalToday) : null)"
@@ -42,8 +42,13 @@
                                     <div class="day-summary-content">
                                         <span class="status-icon status-@statusClass" aria-hidden="true">@statusIcon</span>
                                         <time datetime="@DateText(day.Date)">@DisplayDate(day.Date)</time>
-                                        <span class="day-total">Total: @DurationParser.Format(day.Totals.TotalMinutes)</span>
+                                        <span class="day-total">· Total: @DurationParser.Format(day.Totals.TotalMinutes)</span>
                                         <span class="day-balance">· @(day.Totals.ExcessMinutes > 0 ? $"Excess: {DurationParser.Format(day.Totals.ExcessMinutes)}" : $"Remaining: {DurationParser.Format(day.Totals.RemainingMinutes)}")</span>
+                                        <span class="summary-separator" aria-hidden="true">·</span>
+                                        <span class="summary-button-wrap" tabindex="0" title="@(day.Totals.TotalMinutes != WorkdayTotals.TargetMinutes ? $"Summaries are locked: total is {DurationParser.Format(day.Totals.TotalMinutes)}; it must be exactly 7h 12m." : null)">
+                                            <button type="button" class="btn btn-sm btn-outline-primary summary-button @(day.Totals.TotalMinutes == WorkdayTotals.TargetMinutes ? "" : "summary-button-disabled")" aria-label="Summaries for @DisplayDate(day.Date)" aria-disabled="@(_busy || day.Totals.TotalMinutes != WorkdayTotals.TargetMinutes)"
+                                                    @onclick="() => OpenSummaryAsync(day.Date)"><svg class="button-icon" aria-hidden="true" viewBox="0 0 16 16"><path d="M2 3.5h12v9H2zM5 6h6M5 8h4M5 10h2" /></svg></button>
+                                        </span>
                                     </div>
                                 </th>
                             </tr>
@@ -51,7 +56,7 @@
                             {
                                 <tr @key="entry.Id" data-entry-id="@entry.Id">
                                     <td class="entry-date" title="@DateText(day.Date)">@DateText(day.Date)</td><td class="entry-jira" title="@entry.JiraId">@entry.JiraId</td><td>@entry.Title</td><td class="description">@entry.Description</td><td class="entry-duration">@DurationParser.Format(entry.DurationMinutes)</td>
-                                    <td class="entry-actions"><button type="button" class="btn btn-sm btn-outline-primary" disabled="@_busy" @onclick="() => OpenEdit(entry)">Edit</button> <button type="button" class="btn btn-sm btn-outline-primary duplicate-button" aria-label="Duplicate entry" title="Duplicate entry" disabled="@_busy" @onclick="() => OpenDuplicateAsync(entry)"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 1.5h7.75A1.75 1.75 0 0 1 14.5 3.25V11a1.75 1.75 0 0 1-1.75 1.75H12v-1.5h.75a.25.25 0 0 0 .25-.25V3.25A.25.25 0 0 0 12.75 3H5v.75H3.5v-.5A1.75 1.75 0 0 1 5 1.5Z"/><path d="M3.25 5A1.75 1.75 0 0 0 1.5 6.75v6A1.75 1.75 0 0 0 3.25 14.5h6A1.75 1.75 0 0 0 11 12.75v-6A1.75 1.75 0 0 0 9.25 5h-6Zm-.25 1.75a.25.25 0 0 1 .25-.25h6a.25.25 0 0 1 .25.25v6a.25.25 0 0 1-.25.25h-6a.25.25 0 0 1-.25-.25v-6Z"/></svg></button> <button type="button" class="btn btn-sm btn-outline-danger" disabled="@_busy" @onclick="() => RequestDelete(entry)">Delete</button></td>
+                                    <td class="entry-actions"><button type="button" class="btn btn-sm btn-outline-primary icon-action" aria-label="Edit entry" title="Edit entry" disabled="@_busy" @onclick="() => OpenEdit(entry)"><svg class="button-icon" aria-hidden="true" viewBox="0 0 16 16"><path d="m11.5 2.5 2 2-8 8-3 1 1-3zM10 4l2 2" /></svg></button> <button type="button" class="btn btn-sm btn-outline-primary duplicate-button" aria-label="Duplicate entry" title="Duplicate entry" disabled="@_busy" @onclick="() => OpenDuplicateAsync(entry)"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 1.5h7.75A1.75 1.75 0 0 1 14.5 3.25V11a1.75 1.75 0 0 1-1.75 1.75H12v-1.5h.75a.25.25 0 0 0 .25-.25V3.25A.25.25 0 0 0 12.75 3H5v.75H3.5v-.5A1.75 1.75 0 0 1 5 1.5Z"/><path d="M3.25 5A1.75 1.75 0 0 0 1.5 6.75v6A1.75 1.75 0 0 0 3.25 14.5h6A1.75 1.75 0 0 0 11 12.75v-6A1.75 1.75 0 0 0 9.25 5h-6Zm-.25 1.75a.25.25 0 0 1 .25-.25h6a.25.25 0 0 1 .25.25v6a.25.25 0 0 1-.25.25h-6a.25.25 0 0 1-.25-.25v-6Z"/></svg></button> <button type="button" class="btn btn-sm btn-outline-danger icon-action" aria-label="Delete entry" title="Delete entry" disabled="@_busy" @onclick="() => RequestDelete(entry)"><svg class="button-icon" aria-hidden="true" viewBox="0 0 16 16"><path d="M3 4h10M6 4V2.5h4V4m2 0-.6 9H4.6L4 4m2 2v5m4-5v5" /></svg></button></td>
                                 </tr>
                             }
                         </tbody>
@@ -59,7 +64,7 @@
                 </table>
             </div>
         }
-        @if (history.HasOlder) { <button type="button" class="btn btn-outline-primary" disabled="@_busy" @onclick="LoadOlderAsync">Load older day</button> }
+        @if (history.HasOlder) { <button type="button" class="btn btn-outline-primary" disabled="@_busy" @onclick="LoadOlderAsync">Load more...</button> }
         else { <p>All earlier days loaded.</p> }
     }
 </section>
@@ -86,6 +91,72 @@
 {
     <WorkdayConfirmation Title="Delete entry?" Message="@DeleteMessage" ConfirmText="Delete" Confirmed="DeleteAsync" Cancelled="CancelDelete" />
 }
+@if (_summaryDialogOpen && _summary is not null)
+{
+    <dialog @ref="_summaryDialog" aria-labelledby="summary-title" class="summary-dialog">
+        <h2 id="summary-title">Workday summaries — @DisplayDate(_summary.WorkDate)</h2>
+        @if (_summaryError is not null)
+        {
+            <div class="alert alert-danger" role="alert">@_summaryError</div>
+        }
+        <div class="summary-tabs" role="tablist" aria-label="Summary system">
+            <button @ref="_jiraTab" type="button" role="tab" id="jira-tab" class="@(_activeSummaryTab == SummaryTab.Jira ? "active" : null)" autofocus aria-selected="@(_activeSummaryTab == SummaryTab.Jira ? "true" : "false")"
+                    aria-controls="jira-panel" tabindex="@(_activeSummaryTab == SummaryTab.Jira ? 0 : -1)"
+                    @onclick="() => SelectSummaryTab(SummaryTab.Jira)" @onkeydown="HandleSummaryTabKeyAsync">Jira</button>
+            <button @ref="_myWorkTab" type="button" role="tab" id="mywork-tab" class="@(_activeSummaryTab == SummaryTab.MyWork ? "active" : null)" aria-selected="@(_activeSummaryTab == SummaryTab.MyWork ? "true" : "false")"
+                    aria-controls="mywork-panel" tabindex="@(_activeSummaryTab == SummaryTab.MyWork ? 0 : -1)"
+                    @onclick="() => SelectSummaryTab(SummaryTab.MyWork)" @onkeydown="HandleSummaryTabKeyAsync">MyWork</button>
+        </div>
+        @if (_activeSummaryTab == SummaryTab.Jira)
+        {
+            <section id="jira-panel" role="tabpanel" aria-labelledby="jira-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table align-middle summary-table">
+                        <thead><tr><th scope="col">Jira ID</th><th scope="col">Item title</th><th scope="col">Work description</th><th scope="col">Time</th><th scope="col">Copy</th></tr></thead>
+                        <tbody>
+                            @foreach (var (row, index) in _summary.JiraRows.Select((row, index) => (row, index)))
+                            {
+                                <tr>
+                                    <td>@row.JiraId</td><td>@row.Title</td><td class="description">@row.Description</td><td>@DurationParser.Format(row.DurationMinutes)</td>
+                                    <td class="summary-copy-actions">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => CopyJiraIdAsync(row.JiraId, index)">Copy ID</button>
+                                        @if (!string.IsNullOrWhiteSpace(row.Description))
+                                        {
+                                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => CopyWorkDescriptionAsync(row.Description, index)">Copy description</button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot><tr class="summary-total"><th scope="row" colspan="3">Total</th><td>@DurationParser.Format(_summary.JiraTotalMinutes)</td><td></td></tr></tfoot>
+                    </table>
+                </div>
+            </section>
+        }
+        else
+        {
+            <section id="mywork-panel" role="tabpanel" aria-labelledby="mywork-tab" tabindex="0">
+                <div class="table-responsive">
+                    <table class="table align-middle summary-table">
+                        <thead><tr><th scope="col">Work description</th><th scope="col">Time</th><th scope="col">Copy</th></tr></thead>
+                        <tbody>
+                            @foreach (var (row, index) in _summary.MyWorkRows.Select((row, index) => (row, index)))
+                            {
+                                <tr>
+                                    <td class="description">@row.WorkDescription</td><td>@DurationParser.Format(row.DurationMinutes)</td>
+                                    <td><button type="button" class="btn btn-sm btn-outline-primary" @onclick="() => CopyMyWorkDescriptionAsync(row.WorkDescription, index)">Copy description</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot><tr class="summary-total"><th scope="row">Total</th><td>@DurationParser.Format(_summary.MyWorkTotalMinutes)</td><td></td></tr></tfoot>
+                    </table>
+                </div>
+            </section>
+        }
+        <p class="summary-copy-status" role="status" aria-live="polite">@_copyStatus</p>
+        <button type="button" class="btn btn-outline-secondary" @onclick="DismissSummaryAsync">Close</button>
+    </dialog>
+}
 
 @code {
     private bool _busy;
@@ -100,6 +171,15 @@
     private bool _dialogOpen;
     private bool _showDialog;
     private ElementReference _dialog;
+    private bool _summaryDialogOpen;
+    private bool _showSummaryDialog;
+    private ElementReference _summaryDialog;
+    private ElementReference _jiraTab;
+    private ElementReference _myWorkTab;
+    private WorkdaySummary? _summary;
+    private string? _summaryError;
+    private string? _copyStatus;
+    private SummaryTab _activeSummaryTab = SummaryTab.Jira;
     private DotNetObjectReference<WorkdayPage>? _reference;
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
     private string DeleteMessage => $"Delete {_delete?.JiraId} ({DurationParser.Format(_delete?.DurationMinutes ?? 0)})? This cannot be undone.";
@@ -116,6 +196,12 @@
         {
             _showDialog = false;
             await JS.InvokeVoidAsync("entryDialog.open", _dialog, _reference);
+        }
+
+        if (_showSummaryDialog)
+        {
+            _showSummaryDialog = false;
+            await JS.InvokeVoidAsync("entryDialog.open", _summaryDialog, _reference, "DismissSummaryAsync");
         }
     }
 
@@ -178,6 +264,112 @@
         _dialogOpen = true;
         _showDialog = true;
     }
+
+    private async Task OpenSummaryAsync(DateOnly date)
+    {
+        if (_busy || _summaryDialogOpen || HistoryService.Snapshot is not { } history
+            || !history.Days.Prepend(history.Today).Any(day => day.Date == date
+                && day.Totals.TotalMinutes == WorkdayTotals.TargetMinutes))
+        {
+            return;
+        }
+
+        _busy = true;
+        _historyError = null;
+        _summaryError = null;
+        _copyStatus = null;
+
+        var result = await Service.LoadAsync(date);
+        _busy = false;
+
+        if (!result.IsSuccess || Service.Snapshot is not { } snapshot || snapshot.Date != date)
+        {
+            _historyError = "Could not refresh this day. The summary was not opened; check local storage access and try again.";
+            return;
+        }
+
+        if (snapshot.Totals.TotalMinutes != WorkdayTotals.TargetMinutes)
+        {
+            _historyError = "This day changed and no longer totals exactly 7h 12m. Refresh the entries and try again.";
+            return;
+        }
+
+        try
+        {
+            _summary = WorkdaySummary.Create(snapshot.Entries);
+        }
+        catch (ArgumentException)
+        {
+            _historyError = "This day could not be summarized. Refresh the entries and try again.";
+            return;
+        }
+
+        _activeSummaryTab = SummaryTab.Jira;
+        _summaryDialogOpen = true;
+        _showSummaryDialog = true;
+    }
+
+    [JSInvokable]
+    public async Task DismissSummaryAsync()
+    {
+        if (!_summaryDialogOpen)
+        {
+            return;
+        }
+
+        await JS.InvokeVoidAsync("entryDialog.close", _summaryDialog);
+        _summaryDialogOpen = false;
+        _summary = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void SelectSummaryTab(SummaryTab tab)
+    {
+        _activeSummaryTab = tab;
+    }
+
+    private async Task HandleSummaryTabKeyAsync(KeyboardEventArgs args)
+    {
+        if (args.Key is "ArrowLeft" or "ArrowRight" or "Home" or "End")
+        {
+            _activeSummaryTab = args.Key switch
+            {
+                "Home" or "ArrowLeft" => SummaryTab.Jira,
+                _ => SummaryTab.MyWork
+            };
+
+            await (_activeSummaryTab == SummaryTab.Jira ? _jiraTab : _myWorkTab).FocusAsync();
+        }
+    }
+
+    private async Task CopyTextAsync(string value, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", value);
+            _copyStatus = "Copied";
+            GlobalStatus.Show("Copied.");
+        }
+        catch (JSException)
+        {
+            _copyStatus = $"Could not copy the {fieldName.ToLowerInvariant()}. Select the text and copy it manually.";
+        }
+        catch (InvalidOperationException)
+        {
+            _copyStatus = $"Could not copy the {fieldName.ToLowerInvariant()}. Select the text and copy it manually.";
+        }
+    }
+
+    private Task CopyJiraIdAsync(string value, int rowIndex) => CopyTextAsync(value, $"Jira ID for row {rowIndex + 1}");
+
+    private Task CopyWorkDescriptionAsync(string value, int rowIndex) => CopyTextAsync(value, $"work description for row {rowIndex + 1}");
+
+    private Task CopyMyWorkDescriptionAsync(string value, int rowIndex) => CopyTextAsync(value, $"MyWork description for row {rowIndex + 1}");
 
     [JSInvokable]
     public async Task DismissAsync()
@@ -297,6 +489,13 @@
     private string? FieldError(string field) => _errors is not null && _errors.TryGetValue(field, out var error) ? error : null;
     private static string DateText(DateOnly date) => date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
     private static string DisplayDate(DateOnly date) => date.ToString("D", System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+
+    private enum SummaryTab
+    {
+        Jira,
+        MyWork
+    }
+
     public void Dispose()
     {
         _reference?.Dispose();

@@ -10,7 +10,7 @@ p { margin-bottom: .7rem; }
 a, .btn-link, a:hover, a:focus { color: var(--accent); }
 .btn { font-size: .93rem; font-weight: 700; }
 .btn-primary { --bs-btn-disabled-color: #fff; --bs-btn-disabled-bg: var(--accent); --bs-btn-disabled-border-color: var(--accent); color: #fff; background: var(--accent); border-color: var(--accent); }
-.btn-primary:hover, .btn-primary:active { color: #fff !important; background: var(--accent) !important; border-color: var(--accent) !important; filter: brightness(.9); }
+.btn-primary:hover, .btn-primary:active { color: #fff !important; background: var(--accent) !important; border-color: var(--accent) !important; filter: brightness(1.12); }
 .btn-outline-primary, .btn-outline-secondary { color: var(--text); border-color: var(--border); }
 .btn-outline-primary:hover { color: #fff; background: var(--accent); border-color: var(--accent); }
 .btn-outline-secondary { --bs-btn-disabled-color: var(--text); --bs-btn-disabled-bg: var(--secondary-bg); --bs-btn-disabled-border-color: var(--border); background: var(--secondary-bg); }
