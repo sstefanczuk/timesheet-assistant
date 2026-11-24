@@ -56,7 +56,7 @@ North star oznacza tutaj najmniejszy kompletny przepływ, który potwierdza gł�
 | S-07 | browse-entry-history | Użytkownik po otwarciu aplikacji widzi wpisy z trzech ostatnich wcześniejszych dni zawierających wpisy, osobno dzisiaj i możliwość dodania wpisu od zera. Może doładować starszy dzień i przeglądać historię bez limitu retencji; upływ czasu ani aktualizacja aplikacji nie usuwa historii. Przy braku wpisów widzi pusty stan i możliwość dodania nowego. | S-01 | FR-002, FR-006, FR-011; Non-Functional Requirements | done |
 | S-09 | redesign-entry-experience | Użytkownik przegląda dzisiejsze i wcześniejsze wpisy we wspólnej tabeli oraz dodaje i edytuje wpisy w formularzu; decyzja S-09 z 2026-11-21 zachowuje dzisiaj jako dzień w toku. | S-07 | FR-002, FR-006; Non-Functional Requirements | done |
 | S-08 | copy-earlier-day-entries | Użytkownik może powielić pojedynczy wpis przez dostępny przy nim przycisk; aplikacja otwiera ten sam formularz Add entry z danymi źródłowymi i najwcześniejszą późniejszą niepełną datą roboczą (poniedziałek–piątek) do dziś. Użytkownik może edytować kopię przed zapisem; zapis tworzy niezależny wpis, a anulowanie nie zapisuje zmian. | S-09 | FR-006 | done |
-| S-02 | prepare-dual-system-summaries | Użytkownik może otworzyć osobne podsumowania kompletnego dnia i kopiować teksty do Jiry i MyWork; dodatkowe 48 min otrzymuje najdłuższy pojedynczy wpis, przy remisie pierwszy zapisany. | S-08 | US-01, FR-007, FR-008 | proposed |
+| S-02 | prepare-dual-system-summaries | Użytkownik może otworzyć osobne podsumowania kompletnego dnia i kopiować teksty do Jiry i MyWork; dodatkowe 48 min otrzymuje najdłuższy pojedynczy wpis, przy remisie pierwszy zapisany. | S-08 | US-01, FR-007, FR-008 | in-progress |
 | S-03 | track-outstanding-days | Użytkownik może zobaczyć zaległe dni robocze od najstarszego, wybrać dzień do uzupełnienia i pracować na dzisiejszych wpisach w tabeli oraz oznaczyć dzień rozliczony wcześniej bez odtwarzania wpisów; starsze nierozliczone dni pozostają widoczne. | S-01 | FR-001, FR-002 | proposed |
 | S-04 | confirm-day-transfers | Użytkownik może osobno potwierdzić lub cofnąć przeniesienie do każdego systemu; dzień znika z zaległości po wymaganych potwierdzeniach i wraca po ich cofnięciu, a edycja lub usunięcie wpisu resetuje oba potwierdzenia dnia. | S-02, S-03 | FR-005, FR-009, FR-010 | proposed |
 | S-05 | settle-holiday-and-leave | Użytkownik może zmienić typ pojedynczego dnia na święto lub urlop, uzyskać 7 h 12 min na specjalnym tasku Jiry i stan „nie dotyczy” dla MyWork; zastąpienie wpisów urlopem wymaga ostrzeżenia i jawnego potwierdzenia. | S-04 | FR-003, FR-009, FR-010 | proposed |
@@ -153,7 +153,7 @@ Stan zbadany w kodzie i dokumentach, potwierdzony przez użytkownika; zapisany 2
 - **Blockers:** —
 - **Unknowns:** —
 - **Risk:** Po dodawaniu od zera i kopiowaniu na dzisiaj sprawdzamy US-01, rozdzielenie wpisów tego samego ticketa i blokadę podsumowania przy sumie innej niż 7 h 12 min.
-- **Status:** proposed
+- **Status:** in-progress
 
 ### S-03: Wybór zaległego dnia
 
