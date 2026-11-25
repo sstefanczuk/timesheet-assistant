@@ -17,7 +17,7 @@ Use a native `<button>` with `btn` and one variant class. Button labels are bold
 | --- | --- | --- |
 | Primary | `btn btn-primary` | Accent background and white text; the main action, such as Save or Add entry. Hover darkens the button. |
 | Secondary | `btn btn-outline-secondary` | Muted filled background and border; supporting actions such as Cancel, Refresh and switching theme. Hover uses the border color as the background. |
-| Outlined primary | `btn btn-outline-primary` | Neutral background and border; supporting actions such as Edit, Retry history and Load older day. Hover uses the accent background and white text. |
+| Outlined primary | `btn btn-outline-primary` | Neutral background and border; supporting actions such as Edit and Retry history. Hover uses the accent background and white text. |
 | Outlined danger | `btn btn-outline-danger` | Danger-colored text and border; an action that starts a destructive operation, such as Delete. |
 | Danger | `btn btn-danger` | Bootstrap's filled danger style; currently used for confirmation-dialog actions. It is not customized by the application theme. |
 

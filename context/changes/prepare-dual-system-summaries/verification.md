@@ -22,11 +22,9 @@
 - **Restart persistence:** the author reports that entries were still present after closing and reopening the app against the isolated data directory.
 - **Overall acceptance:** accepted by the author on 2026-11-25. The author confirms the phase works as expected, including the remaining manual checks below.
 
-Manual checks on the published executable above:
+Manual checks confirmed by the author on the published executable above:
 
 1. Enter the US-01 records (`T-1 / Scrum Ceremonies / Refinement / 1h` and `X-1 / Order Page / empty description / 6h 12m`); inspect the exact Jira and MyWork rows and totals.
 2. Copy the Jira ID, work description and MyWork description; confirm the pasted values. Edit an entry, reopen Summaries and confirm the changed title/description.
 3. Close and reopen the app, then reopen Summaries and confirm the saved values.
 4. Check keyboard navigation and focus, then check both light and dark themes.
-
-Record the acceptance result here after the author checks the identified package.
