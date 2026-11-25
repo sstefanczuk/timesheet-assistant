@@ -200,9 +200,9 @@ Nie jest wymagana migracja: podsumowania są wyliczane z istniejących wpisów i
 
 #### Automated
 
-- [x] 3.1 Release build i UnitTests przechodzą przed pakowaniem według `src/TimesheetAssistant.UiTests/README.md`.
-- [x] 3.2 Wszystkie UiTests przechodzą na nowym opublikowanym EXE z wymaganym poprzednim EXE; TRX zawiera wykonane testy i brak błędów.
+- [x] 3.1 Release build i UnitTests przechodzą przed pakowaniem według `src/TimesheetAssistant.UiTests/README.md`. — cf1c027
+- [x] 3.2 Wszystkie UiTests przechodzą na nowym opublikowanym EXE z wymaganym poprzednim EXE; TRX zawiera wykonane testy i brak błędów. — cf1c027
 
 #### Manual
 
-- [x] 3.3 Autor na wskazanym pakiecie sprawdza US-01, kopiowanie, ponowne otwarcie po edycji, klawiaturę i oba motywy oraz potwierdza odbiór w verification.md.
+- [x] 3.3 Autor na wskazanym pakiecie sprawdza US-01, kopiowanie, ponowne otwarcie po edycji, klawiaturę i oba motywy oraz potwierdza odbiór w verification.md. — cf1c027
