@@ -14,6 +14,9 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
     public ILocator Alerts => Editor.GetByRole(AriaRole.Alert);
     public ILocator Dialog => _page.GetByRole(AriaRole.Alertdialog);
     public ILocator DailyTotals => _page.Locator($"tbody[data-work-date='{_date}'] .day-summary");
+    public ILocator SummaryButton => _page.Locator($"tbody[data-work-date='{_date}'] button.summary-button");
+    public IPage Page => _page;
+    public DesktopAppFixture Application => application;
     public ILocator Field(string name) => Editor.GetByLabel(name, new() { Exact = true });
     public ILocator Button(string name) => Editor.GetByRole(AriaRole.Button, new() { Name = name, Exact = true });
 
@@ -79,7 +82,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
 
     private async Task EnsureDateVisibleAsync()
     {
-        var older = _page.GetByRole(AriaRole.Button, new() { Name = "Load older day", Exact = true });
+        var older = _page.GetByRole(AriaRole.Button, new() { Name = "Load more...", Exact = true });
         var group = _page.Locator($"tbody[data-work-date='{_date}']");
         while (await group.CountAsync() == 0 && await older.IsVisibleAsync())
         {
@@ -93,6 +96,19 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
         await EnsureDateVisibleAsync();
         await Expect(DailyTotals).ToContainTextAsync($"Total: {total}");
         await Expect(DailyTotals).ToContainTextAsync(balance);
+    }
+
+    public async Task SummaryButtonAsync(bool enabled)
+    {
+        await EnsureDateVisibleAsync();
+        Assert.Equal(enabled ? null : string.Empty, await SummaryButton.GetAttributeAsync("aria-disabled"));
+    }
+
+    public async Task OpenSummaryAsync()
+    {
+        await EnsureDateVisibleAsync();
+        await SummaryButton.ClickAsync();
+        await Expect(_page.Locator("dialog.summary-dialog")).ToBeVisibleAsync();
     }
 
     public async Task EntriesAsync(params string[][] entries)
@@ -111,7 +127,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
     public async Task EditAsync(int index)
     {
         await EnsureDateVisibleAsync();
-        await Rows.Nth(index).GetByRole(AriaRole.Button, new() { Name = "Edit", Exact = true }).ClickAsync();
+        await Rows.Nth(index).GetByRole(AriaRole.Button, new() { Name = "Edit entry", Exact = true }).ClickAsync();
         await Expect(Editor.GetByRole(AriaRole.Heading, new() { Name = "Edit entry", Exact = true })).ToBeVisibleAsync();
         await Expect(Field("Jira ID")).ToBeFocusedAsync(new() { Timeout = application.UiTimeoutMilliseconds });
     }
@@ -119,7 +135,7 @@ internal sealed class WorkdayScreen(DesktopAppFixture application)
     public async Task DeleteAsync(int index, bool confirm)
     {
         await EnsureDateVisibleAsync();
-        await Rows.Nth(index).GetByRole(AriaRole.Button, new() { Name = "Delete", Exact = true }).ClickAsync();
+        await Rows.Nth(index).GetByRole(AriaRole.Button, new() { Name = "Delete entry", Exact = true }).ClickAsync();
         await Expect(Dialog).ToBeVisibleAsync();
         await Dialog.GetByRole(AriaRole.Button, new() { Name = confirm ? "Delete" : "Cancel", Exact = true }).ClickAsync();
         await Expect(Dialog).ToHaveCountAsync(0);

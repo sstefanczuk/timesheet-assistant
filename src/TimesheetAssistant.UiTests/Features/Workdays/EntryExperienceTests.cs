@@ -59,14 +59,14 @@ public sealed class EntryExperienceTests
                 .ToHaveAttributeAsync("title", "ENTRY-VERY-LONG-IDENTIFIER-0");
             await Expect(page.Locator("tr[data-entry-id]").First.Locator(".entry-jira"))
                 .ToHaveCSSAsync("text-overflow", "ellipsis");
-            await page.GetByRole(AriaRole.Button, new() { Name = "Load older day" }).ClickAsync();
+            await page.GetByRole(AriaRole.Button, new() { Name = "Load more..." }).ClickAsync();
             await Expect(rows).ToHaveCountAsync(5);
             await Expect(rows.Last).ToContainTextAsync("ENTRY-VERY-LONG-IDENTIFIER-4");
-            await rows.First.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+            await rows.First.GetByRole(AriaRole.Button, new() { Name = "Delete entry" }).ClickAsync();
             var confirmation = page.GetByRole(AriaRole.Alertdialog);
             await confirmation.GetByRole(AriaRole.Button, new() { Name = "Cancel" }).ClickAsync();
             await Expect(rows).ToHaveCountAsync(5);
-            await rows.First.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+            await rows.First.GetByRole(AriaRole.Button, new() { Name = "Delete entry" }).ClickAsync();
             await confirmation.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
             await Expect(page.Locator("tr[data-entry-id]").Filter(new() { HasText = "ENTRY-0" })).ToHaveCountAsync(0);
         });
@@ -104,7 +104,7 @@ public sealed class EntryExperienceTests
             await Expect(dialog).ToHaveCountAsync(0);
             var row = page.Locator("tr[data-entry-id]").Filter(new() { HasText = "DRAFT-1" });
             await Expect(row).ToHaveCountAsync(1);
-            await row.GetByRole(AriaRole.Button, new() { Name = "Edit", Exact = true }).ClickAsync();
+            await row.GetByRole(AriaRole.Button, new() { Name = "Edit entry", Exact = true }).ClickAsync();
             await dialog.GetByLabel("Item title", new() { Exact = true }).FillAsync("Discard this edit");
             await dialog.GetByRole(AriaRole.Button, new() { Name = "Cancel", Exact = true }).ClickAsync();
             await page.GetByRole(AriaRole.Link, new() { Name = "Settings", Exact = true }).ClickAsync();

@@ -35,7 +35,7 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
 
     public async Task EnsureDateLoadedAsync(DateOnly date)
     {
-        var older = Button("Load older day");
+        var older = Button("Load more...");
         var day = Day(date);
 
         while (await day.CountAsync() == 0 && await older.IsVisibleAsync())
@@ -86,26 +86,26 @@ internal sealed class WorkEntryHistoryScreen(DesktopAppFixture application)
         }
 
         await Expect(Day(expected.Date).Locator(".day-summary")).ToContainTextAsync($"Total: {expected.Total}");
-        await Expect(Day(expected.Date).GetByRole(AriaRole.Button, new() { Name = "Delete", Exact = true })).ToHaveCountAsync(expected.Entries.Length);
+        await Expect(Day(expected.Date).GetByRole(AriaRole.Button, new() { Name = "Delete entry", Exact = true })).ToHaveCountAsync(expected.Entries.Length);
     }
 
     public async Task OlderAsync(params DateOnly[] expectedDates)
     {
         application.RecordStage("load exactly one older complete day");
-        await Button("Load older day").ClickAsync();
+        await Button("Load more...").ClickAsync();
         await DatesAsync(expectedDates);
     }
 
     public async Task ExhaustedAsync()
     {
-        await Expect(Button("Load older day")).ToHaveCountAsync(0);
+        await Expect(Button("Load more...")).ToHaveCountAsync(0);
         await Expect(Earlier.GetByText("All earlier days loaded.", new() { Exact = true })).ToBeVisibleAsync();
     }
 
     public async Task EditAsync(HistoryTestDay day, int entryIndex)
     {
         application.RecordStage("edit historical entry by saved date and identity");
-        await Row(day.Date, day.Identities[entryIndex]).GetByRole(AriaRole.Button, new() { Name = "Edit", Exact = true }).ClickAsync();
+        await Row(day.Date, day.Identities[entryIndex]).GetByRole(AriaRole.Button, new() { Name = "Edit entry", Exact = true }).ClickAsync();
     }
 
     public async Task EditorAcknowledgedAsync(HistoryTestDay day, int entryIndex)

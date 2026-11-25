@@ -57,7 +57,7 @@ public sealed class WorkEntryDuplicationTests
             Assert.Equal(2, identities.Distinct().Count());
 
             await history.Row(olderSource.Date, identities[0])
-                .GetByRole(AriaRole.Button, new() { Name = "Edit", Exact = true }).ClickAsync();
+                .GetByRole(AriaRole.Button, new() { Name = "Edit entry", Exact = true }).ClickAsync();
             await screen.Field("Item title").FillAsync("Edited original");
             await screen.SaveAsync("Entry updated.");
             await Expect(sourceRows.Nth(0)).ToContainTextAsync("Edited original");

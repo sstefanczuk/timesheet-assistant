@@ -95,7 +95,7 @@ public sealed class WorkEntryHistoryTests
             await Expect(editor.Field("Work description (optional)")).ToHaveValueAsync("Kept description");
             await editor.Button("Cancel").ClickAsync();
 
-            await history.Row(days[4].Date, days[4].Identities[0]).GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
+            await history.Row(days[4].Date, days[4].Identities[0]).GetByRole(AriaRole.Button, new() { Name = "Delete entry" }).ClickAsync();
             await editor.Dialog.GetByRole(AriaRole.Button, new() { Name = "Delete" }).ClickAsync();
             var retainedDates = days.Take(4).Select(day => day.Date).ToArray();
             await history.DatesAsync(retainedDates);
@@ -139,7 +139,7 @@ public sealed class WorkEntryHistoryTests
             var blocked = new FileStream(scenario.DatabasePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             try
             {
-                await history.Button("Load older day").ClickAsync();
+                await history.Button("Load more...").ClickAsync();
                 await Expect(history.Earlier.GetByRole(AriaRole.Alert)).ToContainTextAsync("Previously loaded entries have been kept", new() { Timeout = launch.UiTimeoutMilliseconds });
                 await history.DatesAsync(firstFour);
                 await Expect(history.Earlier).ToHaveAttributeAsync("data-oldest-boundary", boundary!);
